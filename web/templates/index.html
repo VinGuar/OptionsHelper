@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Edge Scanner</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">◈</span>
+                <span class="logo-text">OPTIONS EDGE SCANNER</span>
+            </div>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab active">Scanner</a>
+                <a href="/news" class="nav-tab">News & Flow</a>
+            </nav>
+            <div class="header-actions">
+                <button class="btn-help" id="btn-help" title="How to Trade">
+                    <span>?</span> How to Trade
+                </button>
+                <button class="btn-export" id="btn-export" title="Export Results" disabled>
+                    <span>↓</span> Export CSV
+                </button>
+                <div class="header-status" id="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Left Panel: Strategy Selection -->
+            <aside class="panel panel-strategies">
+                <h2 class="panel-title">SELECT STRATEGY</h2>
+                <div class="strategies-list" id="strategies-list">
+                    <!-- Populated by JS -->
+                </div>
+                
+                <div class="scan-options">
+                    <h3>SCAN TYPE</h3>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="scan-type" value="quick" checked>
+                            <span class="radio-custom"></span>
+                            <span>Quick (30 tickers)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="scan-type" value="full">
+                            <span class="radio-custom"></span>
+                            <span>Full S&P 100</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <button class="btn-scan" id="btn-scan">
+                    <span class="btn-icon">▶</span>
+                    <span>RUN SCAN</span>
+                </button>
+            </aside>
+
+            <!-- Center Panel: Results -->
+            <section class="panel panel-results">
+                <div class="results-header">
+                    <h2 class="panel-title">SCAN RESULTS</h2>
+                    <div class="results-meta" id="results-meta"></div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">Scanning...</div>
+                </div>
+                
+                <!-- Results Table -->
+                <div class="results-table-container" id="results-container">
+                    <div class="empty-state" id="empty-state">
+                        <div class="empty-icon">◇</div>
+                        <p>Select a strategy and run a scan to find trade candidates</p>
+                    </div>
+                    <table class="results-table" id="results-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>TICKER</th>
+                                <th>DIRECTION</th>
+                                <th>TRADE</th>
+                                <th>STRENGTH</th>
+                                <th>PRICE</th>
+                                <th>20D RET</th>
+                                <th>IV RANK</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-body">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Right Panel: Details -->
+            <aside class="panel panel-details">
+                <h2 class="panel-title">TRADE DETAILS</h2>
+                <div class="details-content" id="details-content">
+                    <div class="empty-state-small">
+                        <p>Click a candidate to view details</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>Paper trade first. Risk management > prediction accuracy.</span>
+        </footer>
+    </div>
+
+    <!-- How to Trade Modal -->
+    <div class="modal" id="help-modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <button class="modal-close" id="help-modal-close">×</button>
+            <h2>📖 How to Use This Scanner & Execute Trades</h2>
+            
+            <div class="help-section">
+                <h3>🎯 Step 1: Understand the Signal</h3>
+                <p>Each candidate shows:</p>
+                <ul>
+                    <li><strong>Direction:</strong> BULLISH (expect price up), BEARISH (expect price down), or NEUTRAL (expect sideways)</li>
+                    <li><strong>Trade Type:</strong> The specific option structure to use</li>
+                    <li><strong>Strength:</strong> How confident the signal is (higher = better)</li>
+                </ul>
+            </div>
+            
+            <div class="help-section">
+                <h3>📊 Step 2: Trade Type Explained</h3>
+                <div class="trade-types">
+                    <div class="trade-type">
+                        <h4>CALL_DEBIT (Bullish)</h4>
+                        <p>Buy a call spread. You're betting the stock goes UP.</p>
+                        <div class="example">
+                            <strong>Example:</strong> Stock at $100<br>
+                            → BUY $100 Call (40 delta)<br>
+                            → SELL $110 Call (20 delta)<br>
+                            → Pay ~$3.00 debit<br>
+                            → Max profit: $7.00 if stock > $110
+                        </div>
+                    </div>
+                    
+                    <div class="trade-type">
+                        <h4>PUT_DEBIT (Bearish)</h4>
+                        <p>Buy a put spread. You're betting the stock goes DOWN.</p>
+                        <div class="example">
+                            <strong>Example:</strong> Stock at $100<br>
+                            → BUY $100 Put (40 delta)<br>
+                            → SELL $90 Put (20 delta)<br>
+                            → Pay ~$3.00 debit<br>
+                            → Max profit: $7.00 if stock < $90
+                        </div>
+                    </div>
+                    
+                    <div class="trade-type">
+                        <h4>CALL_CREDIT / PUT_CREDIT</h4>
+                        <p>Sell a spread. You collect premium upfront.</p>
+                        <div class="example">
+                            <strong>Example:</strong> Stock at $100<br>
+                            → SELL $110 Call (25 delta)<br>
+                            → BUY $115 Call (10 delta)<br>
+                            → Collect ~$1.50 credit<br>
+                            → Max profit: $1.50 if stock < $110
+                        </div>
+                    </div>
+                    
+                    <div class="trade-type">
+                        <h4>IRON_CONDOR (Neutral)</h4>
+                        <p>Sell both a call spread AND put spread. Profit if stock stays in range.</p>
+                        <div class="example">
+                            <strong>Example:</strong> Stock at $100<br>
+                            → SELL $110 Call + BUY $115 Call<br>
+                            → SELL $90 Put + BUY $85 Put<br>
+                            → Collect ~$2.00 total credit<br>
+                            → Max profit if stock stays $90-$110
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="help-section">
+                <h3>🛒 Step 3: How to Actually Buy</h3>
+                <ol>
+                    <li><strong>Open your broker</strong> (Robinhood, TD Ameritrade, Schwab, etc.)</li>
+                    <li><strong>Search for the ticker</strong> shown in the scanner</li>
+                    <li><strong>Go to Options Chain</strong></li>
+                    <li><strong>Select expiration:</strong> Use the DTE shown (e.g., 30-45 days out)</li>
+                    <li><strong>Find the strikes:</strong> Use delta targets shown (e.g., ~0.40 for long leg)</li>
+                    <li><strong>Build the spread:</strong> Select both legs (buy one, sell one)</li>
+                    <li><strong>Set limit price:</strong> Start at mid-price, adjust if needed</li>
+                    <li><strong>Submit order</strong></li>
+                </ol>
+            </div>
+            
+            <div class="help-section">
+                <h3>⚠️ Step 4: Risk Management (CRITICAL)</h3>
+                <ul>
+                    <li><strong>Position Size:</strong> Never risk more than 2% of your account per trade</li>
+                    <li><strong>Take Profit:</strong> Close at 50% of max gain (don't be greedy)</li>
+                    <li><strong>Stop Loss:</strong> Close if losing 50% of what you paid</li>
+                    <li><strong>Time Stop:</strong> Close if < 10 DTE remaining</li>
+                    <li><strong>Max Positions:</strong> No more than 5 trades open at once</li>
+                </ul>
+            </div>
+            
+            <div class="help-section warning">
+                <h3>🚨 Important Warnings</h3>
+                <ul>
+                    <li>PAPER TRADE FIRST for at least 20 trades</li>
+                    <li>Check earnings dates - don't hold through earnings</li>
+                    <li>Use limit orders, not market orders</li>
+                    <li>If the spread is wide (> 10%), skip the trade</li>
+                    <li>This is NOT financial advice - you can lose money</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

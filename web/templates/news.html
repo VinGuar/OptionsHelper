@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market News & Flow | Options Edge Scanner</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/news.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">OPTIONS EDGE SCANNER</span>
+                </a>
+            </div>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">Scanner</a>
+                <a href="/news" class="nav-tab active">News & Flow</a>
+            </nav>
+            <div class="header-actions">
+                <button class="btn-refresh" id="btn-refresh-all">
+                    <span class="refresh-icon">↻</span> Refresh All
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="news-main">
+            <!-- Left: Stock News with Sentiment -->
+            <section class="news-section">
+                <div class="section-header">
+                    <h2>📰 Stock News & Sentiment</h2>
+                    <button class="btn-sm" id="btn-refresh-news">
+                        <span class="refresh-icon">↻</span>
+                    </button>
+                </div>
+                <p class="section-desc">News with bullish/bearish signals for trading</p>
+                <div class="section-meta" id="news-meta">Click refresh to load</div>
+                <div class="news-list" id="news-list">
+                    <div class="loading-state">
+                        <p>Click refresh to load stock news with sentiment</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Center: Unusual Options Activity -->
+            <section class="flow-section">
+                <div class="section-header">
+                    <h2>🐋 Unusual Options Flow</h2>
+                    <div class="section-header-actions">
+                        <button class="btn-info" id="btn-flow-info" title="How to use this data">?</button>
+                        <button class="btn-sm" id="btn-refresh-flow">
+                            <span class="refresh-icon">↻</span>
+                        </button>
+                    </div>
+                </div>
+                <p class="section-desc">Truly unusual activity: Volume >> Open Interest = New positions</p>
+                <div class="section-meta" id="flow-meta">Click refresh to load</div>
+                
+                <!-- Info Expandable -->
+                <div class="flow-info-panel" id="flow-info-panel">
+                    <div class="flow-info-header">
+                        <h4>📖 How to Use Unusual Options Flow</h4>
+                        <button class="btn-close-info" id="btn-close-info">×</button>
+                    </div>
+                    <div class="flow-info-content">
+                        <div class="info-section">
+                            <h5>What Makes Flow "Unusual"?</h5>
+                            <ul>
+                                <li><strong>Vol/OI Ratio > 3:</strong> Volume much higher than open interest = NEW positions being opened (not just trading existing ones)</li>
+                                <li><strong>Large Premium:</strong> $500K+ in a single strike = Institutional/whale money</li>
+                                <li><strong>OTM Bets:</strong> Out-of-the-money options = Directional speculation</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h5>How to Trade This</h5>
+                            <div class="trade-example bullish">
+                                <strong>Bullish Flow (Calls):</strong>
+                                <p>Large call buying with high Vol/OI suggests someone expects the stock to go UP.</p>
+                                <ul>
+                                    <li>Consider buying calls or call spreads</li>
+                                    <li>Look for confirmation in price action</li>
+                                    <li>Watch the same expiration as the flow</li>
+                                </ul>
+                            </div>
+                            <div class="trade-example bearish">
+                                <strong>Bearish Flow (Puts):</strong>
+                                <p>Large put buying with high Vol/OI suggests someone expects the stock to go DOWN.</p>
+                                <ul>
+                                    <li>Consider buying puts or put spreads</li>
+                                    <li>Could also be hedging - check if stock is up big</li>
+                                    <li>More reliable near earnings/events</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h5>⚠️ Important Caveats</h5>
+                            <ul>
+                                <li><strong>Not a guarantee:</strong> Even whales are wrong sometimes</li>
+                                <li><strong>Could be hedging:</strong> A big put buy might hedge a long stock position</li>
+                                <li><strong>Timing matters:</strong> Flow near expiry is more aggressive</li>
+                                <li><strong>Use with other signals:</strong> Combine with technicals and news</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flow-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="bullish">Bullish</button>
+                    <button class="filter-btn" data-filter="bearish">Bearish</button>
+                    <button class="filter-btn" data-filter="whale">Whales $5M+</button>
+                </div>
+                
+                <div class="flow-list" id="flow-list">
+                    <div class="loading-state">
+                        <p>Click refresh to load unusual options activity</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right: Top Movers & Sentiment -->
+            <aside class="sidebar-section">
+                <div class="sidebar-card sentiment-card">
+                    <div class="section-header">
+                        <h3>📊 Fear & Greed Index</h3>
+                    </div>
+                    <div class="sentiment-display" id="sentiment-display">
+                        <div class="sentiment-meter">
+                            <div class="sentiment-bar" id="sentiment-bar"></div>
+                        </div>
+                        <div class="sentiment-labels">
+                            <span class="fear">Fear</span>
+                            <span class="neutral">Neutral</span>
+                            <span class="greed">Greed</span>
+                        </div>
+                        <div class="sentiment-value" id="sentiment-value">--</div>
+                        <div class="sentiment-indicators" id="sentiment-indicators">
+                            <!-- Individual indicators will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card">
+                    <div class="section-header">
+                        <h3>🔥 Most Active Options</h3>
+                    </div>
+                    <div class="active-list" id="active-list">
+                        <div class="loading-state small">Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card">
+                    <div class="section-header">
+                        <h3>📈 Top Gainers</h3>
+                    </div>
+                    <div class="movers-list" id="gainers-list">
+                        <div class="loading-state small">Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card">
+                    <div class="section-header">
+                        <h3>📉 Top Losers</h3>
+                    </div>
+                    <div class="movers-list" id="losers-list">
+                        <div class="loading-state small">Loading...</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>Data from free sources. Not financial advice. Always verify before trading.</span>
+        </footer>
+    </div>
+
+    <script src="/static/js/news.js"></script>
+</body>
+</html>

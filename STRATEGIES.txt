@@ -1,0 +1,421 @@
+================================================================================
+                        OPTIONS TRADING STRATEGIES & EDGES
+                              Complete Reference Guide
+================================================================================
+
+This document describes each trading strategy/edge available in the scanner.
+Each strategy is based on documented market inefficiencies and has specific
+conditions that must be met before generating a trade signal.
+
+IMPORTANT: No strategy works 100% of the time. These edges are statistical -
+they work over many trades, not every trade. Risk management is critical.
+
+================================================================================
+STRATEGY 1: TREND FOLLOWING DEBIT SPREAD
+================================================================================
+File: src/strategies/trend_following_debit.py
+
+WHAT IT IS:
+-----------
+Buy debit spreads (call spreads for bullish, put spreads for bearish) in the
+direction of a confirmed trend. You buy a closer-to-the-money option and sell
+a further out-of-the-money option to reduce cost.
+
+THE EDGE:
+---------
+When a stock is trending (price > MA20 > MA50 with momentum), it has a higher
+probability of continuing than reversing. This is the "momentum factor" - one
+of the most documented anomalies in finance.
+
+Academic research shows:
+- Momentum has ~0.5% monthly alpha historically
+- Trends persist longer than random walk theory suggests
+- Institutions and algorithms trend-follow, reinforcing the pattern
+
+WHY DEBIT SPREADS:
+------------------
+- Defined risk (can't lose more than you pay)
+- Cheaper than buying naked options
+- Less affected by IV crush
+- Selling the OTM leg reduces theta decay
+
+FILTERS:
+--------
+- Price > MA20 > MA50 (bullish) or Price < MA20 < MA50 (bearish)
+- 20-day return >= +3% (bullish) or <= -3% (bearish)
+- IV Rank between 15-55 (not too cheap, not too expensive)
+- RSI 50-75 (bullish) or 25-50 (bearish)
+- No earnings within 10 days
+- Options spread <= 8%, OI >= 500
+
+OPTION STRUCTURE:
+-----------------
+- DTE: 30-45 days
+- Long leg: ~40 delta
+- Short leg: ~20 delta
+- Max debit: 35% of spread width
+
+EXIT RULES:
+-----------
+- Take profit: 50% of max gain
+- Stop loss: 50% of debit paid
+- Time stop: Exit if < 10 DTE
+- Trend break: Exit if price crosses MA20
+
+EXPECTED PERFORMANCE:
+---------------------
+- Win rate: ~58%
+- Typical hold: 21 days
+- Risk level: Medium
+
+WHEN IT FAILS:
+--------------
+- Choppy, range-bound markets
+- Sudden reversals (news, macro shocks)
+- IV crush if entering when IV elevated
+
+
+================================================================================
+STRATEGY 2: IV CRUSH CREDIT SPREAD
+================================================================================
+File: src/strategies/iv_crush_credit.py
+
+WHAT IT IS:
+-----------
+Sell credit spreads (collect premium) when implied volatility is elevated,
+betting that IV will decrease and the stock won't make a big move.
+
+THE EDGE:
+---------
+Implied volatility consistently OVERESTIMATES actual realized volatility. This
+is called the "volatility risk premium" - the market pays extra for insurance.
+
+Key facts:
+- IV overprices realized vol by 2-4% annually on average
+- Post-earnings, IV collapses rapidly (IV crush)
+- Most options expire worthless
+- Time decay accelerates as expiration approaches
+
+WHY CREDIT SPREADS:
+-------------------
+- Collect premium upfront
+- Profit if stock stays flat OR moves slightly your way
+- Defined risk (unlike naked options)
+- Theta works for you
+
+FILTERS:
+--------
+- IV Rank >= 55 (elevated volatility - KEY filter)
+- Post-earnings bonus (1-5 days after = IV crush opportunity)
+- 20-day return < 8% (not too trendy)
+- No earnings within 20 days
+- RSI not extreme
+
+OPTION STRUCTURE:
+-----------------
+- DTE: 20-35 days
+- Short leg: ~25 delta (OTM)
+- Long leg: ~10 delta (further OTM, protection)
+- Min credit: 25% of spread width
+
+EXIT RULES:
+-----------
+- Take profit: 50% of credit received
+- Stop loss: 150% of credit received
+- Time stop: Exit if < 7 DTE (gamma risk)
+- IV normalization: Exit when IV drops
+
+EXPECTED PERFORMANCE:
+---------------------
+- Win rate: ~68%
+- Typical hold: 14 days
+- Risk level: Medium
+
+WHEN IT FAILS:
+--------------
+- Unexpected large moves (black swans)
+- Sustained trending (wrong direction)
+- Selling too close to the money
+- Gap risk overnight
+
+
+================================================================================
+STRATEGY 3: MEAN REVERSION OTM
+================================================================================
+File: src/strategies/mean_reversion_otm.py
+
+WHAT IT IS:
+-----------
+Buy cheap out-of-the-money options betting on a snap-back when a stock has
+made an extreme short-term move (oversold or overbought).
+
+THE EDGE:
+---------
+Markets overreact to news in the short term. When RSI hits extremes (<25 or >75),
+stocks have a statistical tendency to revert toward the mean. You're betting on
+this reversion with cheap options that can multiply if correct.
+
+Key facts:
+- RSI extremes precede reversals ~55-60% of the time
+- Oversold bounces and overbought pullbacks are well-documented
+- OTM options are cheap, so small moves = big % gains
+- Asymmetric risk/reward (lose 100% or gain 200%+)
+
+WHY OTM OPTIONS:
+----------------
+- Very cheap (small dollar risk)
+- Huge upside if correct (2-5x possible)
+- Defined risk (can only lose premium)
+- Don't need to be exactly right on magnitude
+
+FILTERS:
+--------
+- RSI < 25 (oversold → buy calls) or RSI > 75 (overbought → buy puts)
+- 5-day return >= 5% in the extreme direction
+- 20-day return < 15% (not fighting mega-trend)
+- IV Rank < 50 (options not too expensive)
+- No earnings within 7 days
+
+OPTION STRUCTURE:
+-----------------
+- DTE: 14-30 days (shorter for faster theta)
+- Delta: ~25 (OTM but not lottery ticket)
+- Max cost: 2% of stock price
+
+EXIT RULES:
+-----------
+- Take profit: 100% gain (double your money)
+- Stop loss: 50% of premium
+- Time stop: Exit if < 5 DTE
+- RSI normalization: Exit when RSI returns to 40-60
+
+EXPECTED PERFORMANCE:
+---------------------
+- Win rate: ~45% (lower, but winners are bigger)
+- Typical hold: 7 days
+- Risk level: HIGH
+
+WHEN IT FAILS:
+--------------
+- Fundamental changes (stock deserves new price)
+- Momentum continuation (trend > mean reversion)
+- Slow reversal (theta kills you)
+- Wrong on timing
+
+
+================================================================================
+STRATEGY 4: BREAKOUT MOMENTUM
+================================================================================
+File: src/strategies/breakout_momentum.py
+
+WHAT IT IS:
+-----------
+Buy calls or call spreads when a stock breaks above resistance (like 52-week
+highs) with momentum confirmation.
+
+THE EDGE:
+---------
+Breakouts work because of:
+1. Short covering - shorts panic buy, accelerating the move
+2. Breakout traders - technical traders pile in
+3. Media attention - brings new buyers
+4. Psychology - resistance becomes support
+
+Key facts:
+- 52-week high breakouts continue ~60% of the time
+- "Stocks making new highs tend to keep making new highs"
+- Works best in bull markets
+- Volume confirmation improves odds
+
+WHY CALLS/CALL SPREADS:
+-----------------------
+- Leverage the upside move
+- Defined risk
+- Capture explosive moves
+- Time is somewhat on your side if stock keeps moving
+
+FILTERS:
+--------
+- Price > MA20 > MA50 (uptrend)
+- 5-day return >= 3% (recent momentum)
+- 20-day return >= 5% (breakout territory)
+- Not more than 10% above MA20 (not too extended)
+- RSI < 80 (not extremely overbought)
+- IV Rank 20-60
+- No earnings within 7 days
+
+OPTION STRUCTURE:
+-----------------
+- DTE: 21-45 days
+- Long leg: ~50 delta (ATM or slightly ITM)
+- Short leg: ~25 delta
+- Max debit: 40% of spread width
+
+EXIT RULES:
+-----------
+- Take profit: 75% of max gain
+- Stop loss: 40% of debit (tighter - breakouts should work fast)
+- Time stop: Exit if < 10 DTE
+- Breakdown exit: Exit if price falls below breakout level
+
+EXPECTED PERFORMANCE:
+---------------------
+- Win rate: ~55%
+- Typical hold: 14 days
+- Risk level: Medium-High
+
+WHEN IT FAILS:
+--------------
+- False breakouts (fakeouts)
+- Bear markets / risk-off
+- Low volume breakouts
+- Buying the exact top
+
+
+================================================================================
+STRATEGY 5: IRON CONDOR RANGE
+================================================================================
+File: src/strategies/iron_condor_range.py
+
+WHAT IT IS:
+-----------
+Sell both a call spread AND a put spread on range-bound stocks. You collect
+premium from both sides and profit if the stock stays between your short strikes.
+
+THE EDGE:
+---------
+Most stocks, most of the time, don't make huge moves. Iron condors exploit this:
+- Stocks are range-bound ~70% of the time
+- You collect premium from BOTH directions
+- Theta decay works for you on both sides
+- Even small moves in either direction are fine
+
+Key facts:
+- High win rate (70-80%) with proper strike selection
+- Consistent small profits
+- Works especially well in low-volatility environments
+- Double premium collection vs single credit spread
+
+WHY IRON CONDORS:
+-----------------
+- Profit from doing nothing (stock stays flat)
+- Collect premium from both bullish and bearish traders
+- Defined risk on both sides
+- Wide profit zone
+
+FILTERS:
+--------
+- 20-day return < 5% (stock hasn't moved much)
+- 5-day return < 3% (recent stability)
+- RSI between 35-65 (neutral)
+- IV Rank 25-55 (some premium but not expecting big move)
+- MA20 and MA50 close together (< 3% spread)
+- No earnings within 25 days (CRITICAL)
+
+OPTION STRUCTURE:
+-----------------
+- DTE: 30-45 days
+- Call spread: Sell 20 delta, buy 10 delta
+- Put spread: Sell 20 delta, buy 10 delta
+- Min credit: 30% of wing width
+
+EXIT RULES:
+-----------
+- Take profit: 50% of credit received
+- Stop loss: 100% of credit received
+- Time stop: Exit at 14 DTE (avoid gamma risk)
+- Breakout exit: Exit if stock breaks the range
+
+EXPECTED PERFORMANCE:
+---------------------
+- Win rate: ~72%
+- Typical hold: 21 days
+- Risk level: Medium
+
+WHEN IT FAILS:
+--------------
+- Strong trending markets
+- Unexpected news/events
+- Earnings (NEVER hold through earnings)
+- Flash crashes or gap moves
+
+
+================================================================================
+                            STRATEGY COMPARISON
+================================================================================
+
+| Strategy              | Win Rate | Risk   | Best Market    | Hold Time |
+|-----------------------|----------|--------|----------------|-----------|
+| Trend Following Debit | 58%      | Medium | Trending       | 21 days   |
+| IV Crush Credit       | 68%      | Medium | Post-event     | 14 days   |
+| Mean Reversion OTM    | 45%      | High   | Oversold/bought| 7 days    |
+| Breakout Momentum     | 55%      | Med-Hi | Bull market    | 14 days   |
+| Iron Condor Range     | 72%      | Medium | Range-bound    | 21 days   |
+
+
+================================================================================
+                            RISK MANAGEMENT RULES
+================================================================================
+
+These apply to ALL strategies:
+
+1. POSITION SIZING
+   - Max 2% of account per trade
+   - Max 5 concurrent positions
+   - Never risk more than 10% of account total
+
+2. DIVERSIFICATION
+   - Don't put all trades in same sector
+   - Mix strategies (don't all be short vol or all be long vol)
+   - Spread entries over time
+
+3. STOP LOSSES
+   - Always have predefined exit points
+   - Never "hope" a losing trade will recover
+   - Time stops are as important as price stops
+
+4. EARNINGS
+   - Check earnings dates before EVERY trade
+   - Close positions before earnings (unless that's your strategy)
+   - Earnings = binary event = unpredictable
+
+5. LIQUIDITY
+   - Only trade liquid options (tight spreads, high OI)
+   - Wide spreads eat your edge
+   - If you can't get filled at a reasonable price, skip it
+
+
+================================================================================
+                            HOW TO USE THIS SCANNER
+================================================================================
+
+1. Pick a strategy that matches current market conditions:
+   - Trending market → Trend Following or Breakout
+   - Range-bound market → Iron Condor or IV Crush
+   - Extreme moves → Mean Reversion
+
+2. Run the scanner with that strategy selected
+
+3. Review the candidates - the scanner shows WHY each passed
+
+4. Check the news for any upcoming events the scanner might miss
+
+5. Paper trade first - track results for at least 20 trades
+
+6. Start small - even if paper trading works, real money is different
+
+7. Keep a trade journal - log every trade and review weekly
+
+
+================================================================================
+                              DISCLAIMER
+================================================================================
+
+This is for educational purposes only. Options trading involves significant
+risk of loss. Past performance does not guarantee future results. The
+strategies described here are based on historical patterns that may not
+continue. Always do your own research and consider consulting a financial
+advisor before trading.
+
+================================================================================
+
