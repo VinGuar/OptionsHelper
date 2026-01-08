@@ -247,17 +247,44 @@ def get_market_news():
 
 @app.route('/api/flow')
 def get_flow():
-    """Get unusual options flow and whale activity."""
+    """Get unusual options flow and whale activity only."""
     try:
-        data = get_flow_data()
-        return jsonify(data)
+        scraper = FlowScraper()
+        return jsonify({
+            'unusual_flow': scraper.get_unusual_flow(),
+            'timestamp': datetime.now().isoformat(),
+        })
     except Exception as e:
         return jsonify({
             'error': str(e),
             'unusual_flow': [],
-            'most_active': [],
-            'movers': {'gainers': [], 'losers': []},
+            'timestamp': datetime.now().isoformat(),
+        })
+
+
+@app.route('/api/market')
+def get_market():
+    """Get market data: indices, sentiment, sectors, events, movers."""
+    try:
+        scraper = FlowScraper()
+        return jsonify({
+            'sentiment': scraper.get_fear_greed_index(),
+            'indices': scraper.get_market_indices(),
+            'sectors': scraper.get_sector_performance(),
+            'events': scraper.get_upcoming_events(),
+            'movers': scraper.get_market_movers(),
+            'most_active': scraper.get_most_active_options(),
+            'timestamp': datetime.now().isoformat(),
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
             'sentiment': {'value': 50, 'label': 'Neutral'},
+            'indices': {},
+            'sectors': [],
+            'events': [],
+            'movers': {'gainers': [], 'losers': []},
+            'most_active': [],
             'timestamp': datetime.now().isoformat(),
         })
 

@@ -7,6 +7,8 @@ class OptionsScanner {
         this.results = null;
         this.selectedCandidate = null;
         this.pollInterval = null;
+        this.strategiesData = [];
+        this.CACHE_KEY = 'options_scanner_cache';
         
         this.init();
     }
@@ -14,12 +16,73 @@ class OptionsScanner {
     async init() {
         await this.loadStrategies();
         this.bindEvents();
+        // Load cached results for initial strategy
+        this.loadCachedResults(this.selectedStrategy);
+    }
+    
+    // LocalStorage cache methods
+    getCache() {
+        try {
+            const cache = localStorage.getItem(this.CACHE_KEY);
+            return cache ? JSON.parse(cache) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+    
+    saveToCache(strategyKey, results) {
+        try {
+            const cache = this.getCache();
+            cache[strategyKey] = {
+                results: results,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem(this.CACHE_KEY, JSON.stringify(cache));
+        } catch (e) {
+            console.error('Failed to save to cache:', e);
+        }
+    }
+    
+    loadCachedResults(strategyKey) {
+        const cache = this.getCache();
+        const cached = cache[strategyKey];
+        
+        if (cached && cached.results) {
+            this.results = cached.results;
+            this.renderResults(cached.results, cached.timestamp);
+            this.setStatus('Ready', false);
+            document.getElementById('btn-export').disabled = false;
+            
+            // Select first passed candidate
+            const firstPassed = cached.results.candidates?.find(c => c.passed);
+            if (firstPassed) {
+                this.selectCandidate(firstPassed.ticker);
+            }
+        } else {
+            // No cached results - show empty state
+            this.showEmptyState(strategyKey);
+        }
+    }
+    
+    showEmptyState(strategyKey) {
+        this.results = null;
+        document.getElementById('empty-state').style.display = 'flex';
+        document.getElementById('results-table').style.display = 'none';
+        document.getElementById('results-meta').innerHTML = '';
+        document.getElementById('results-timestamp').innerHTML = '';
+        document.getElementById('details-content').innerHTML = `
+            <div class="empty-details">
+                Click a candidate to view details
+            </div>
+        `;
+        document.getElementById('btn-export').disabled = true;
     }
     
     async loadStrategies() {
         try {
             const response = await fetch('/api/strategies');
             const strategies = await response.json();
+            this.strategiesData = strategies;
             this.renderStrategies(strategies);
         } catch (error) {
             console.error('Failed to load strategies:', error);
@@ -102,6 +165,9 @@ class OptionsScanner {
         document.querySelectorAll('.strategy-card').forEach(card => {
             card.classList.toggle('selected', card.dataset.key === key);
         });
+        
+        // Load cached results for this strategy
+        this.loadCachedResults(key);
     }
     
     async startScan() {
@@ -198,19 +264,39 @@ class OptionsScanner {
             const response = await fetch('/api/scan/results');
             const data = await response.json();
             this.results = data;
-            this.renderResults(data);
+            
+            // Save to cache
+            this.saveToCache(this.selectedStrategy, data);
+            
+            // Render with current timestamp
+            this.renderResults(data, new Date().toISOString());
             this.setStatus('Ready', false);
         } catch (error) {
             console.error('Failed to load results:', error);
         }
     }
     
-    renderResults(data) {
+    renderResults(data, timestamp) {
+        // Show table, hide empty state
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('results-table').style.display = 'table';
+        
         // Update meta
         document.getElementById('results-meta').innerHTML = `
             <span class="count">${data.passed_count}</span> / ${data.total_count} passed
             &nbsp;|&nbsp; ${data.strategy.name}
         `;
+        
+        // Update timestamp
+        const timestampEl = document.getElementById('results-timestamp');
+        if (timestamp) {
+            const date = new Date(timestamp);
+            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            timestampEl.innerHTML = `<span class="timestamp-icon">🕐</span> Scanned: ${dateStr} at ${timeStr}`;
+        } else {
+            timestampEl.innerHTML = '';
+        }
         
         // Render table
         const tbody = document.getElementById('results-body');

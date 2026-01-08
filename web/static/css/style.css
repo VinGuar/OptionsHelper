@@ -37,7 +37,8 @@ body {
     font-family: var(--font-sans);
     background: var(--bg-primary);
     color: var(--text-primary);
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     line-height: 1.5;
 }
 
@@ -45,7 +46,8 @@ body {
 .app {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
 }
 
 /* Header */
@@ -56,6 +58,7 @@ body {
     padding: 16px 24px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .logo {
@@ -184,13 +187,18 @@ body {
     grid-template-columns: 280px 1fr 320px;
     gap: 1px;
     background: var(--border-color);
+    overflow: hidden;
+    min-height: 0; /* Critical for flex children to respect overflow */
 }
 
 /* Panels */
 .panel {
     background: var(--bg-secondary);
     padding: 20px;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Critical for flex children to respect overflow */
 }
 
 .panel-title {
@@ -200,14 +208,52 @@ body {
     letter-spacing: 1.5px;
     color: var(--text-muted);
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
-/* Strategy List */
+/* Strategy List - Scrollable */
+.strategies-list-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    padding-right: 8px;
+}
+
+.strategies-list-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.strategies-list-scroll::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-radius: 3px;
+}
+
+.strategies-list-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.strategies-list-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Legacy - keep for compatibility */
 .strategies-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin-bottom: 24px;
+}
+
+/* Scan Controls - Fixed at bottom */
+.scan-controls {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+    margin-top: auto;
 }
 
 .strategy-card {
@@ -369,13 +415,23 @@ body {
 /* Results Panel */
 .panel-results {
     padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .results-header {
     display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    gap: 4px 16px;
+}
+
+.results-header .panel-title {
+    margin-bottom: 0;
 }
 
 .results-meta {
@@ -389,9 +445,21 @@ body {
     font-weight: 600;
 }
 
+.results-timestamp {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.results-timestamp .timestamp-icon {
+    margin-right: 4px;
+}
+
 /* Progress Bar */
 .progress-container {
     margin-bottom: 20px;
+    flex-shrink: 0;
 }
 
 .progress-bar {
@@ -435,7 +503,40 @@ body {
     font-size: 13px;
 }
 
+.empty-details {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
 /* Results Table */
+/* Results Table - Scrollable */
+.results-table-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.results-table-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.results-table-scroll::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+.results-table-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.results-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Legacy */
 .results-table-container {
     overflow-x: auto;
 }
@@ -525,6 +626,21 @@ body {
 /* Details Panel */
 .details-content {
     font-size: 13px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.details-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.details-content::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+.details-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
 }
 
 .detail-section {
@@ -626,6 +742,7 @@ body {
     font-size: 11px;
     color: var(--text-muted);
     text-align: center;
+    flex-shrink: 0;
 }
 
 /* Modal */

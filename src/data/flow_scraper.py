@@ -553,6 +553,120 @@ class FlowScraper:
             }
 
 
+    def get_market_indices(self) -> dict:
+        """Get major market index data."""
+        indices = {}
+        
+        index_map = {
+            'spy': ('SPY', 'S&P 500'),
+            'dow': ('^DJI', 'DOW'),
+            'nasdaq': ('^IXIC', 'NASDAQ'),
+            'vix': ('^VIX', 'VIX'),
+        }
+        
+        for key, (ticker, name) in index_map.items():
+            try:
+                stock = yf.Ticker(ticker)
+                hist = stock.history(period='2d')
+                
+                if len(hist) >= 2:
+                    current = hist['Close'].iloc[-1]
+                    prev = hist['Close'].iloc[-2]
+                    change = current - prev
+                    change_pct = (change / prev) * 100
+                    
+                    indices[key] = {
+                        'name': name,
+                        'price': round(current, 2),
+                        'change': round(change, 2),
+                        'change_pct': round(change_pct, 2),
+                    }
+            except:
+                pass
+        
+        return indices
+    
+    def get_sector_performance(self) -> list[dict]:
+        """Get sector ETF performance."""
+        sectors = [
+            ('XLK', 'Technology'),
+            ('XLF', 'Financials'),
+            ('XLE', 'Energy'),
+            ('XLV', 'Healthcare'),
+            ('XLI', 'Industrials'),
+            ('XLY', 'Consumer Disc'),
+            ('XLP', 'Consumer Staples'),
+            ('XLU', 'Utilities'),
+            ('XLRE', 'Real Estate'),
+            ('XLB', 'Materials'),
+        ]
+        
+        results = []
+        for ticker, name in sectors:
+            try:
+                stock = yf.Ticker(ticker)
+                hist = stock.history(period='2d')
+                
+                if len(hist) >= 2:
+                    current = hist['Close'].iloc[-1]
+                    prev = hist['Close'].iloc[-2]
+                    change_pct = ((current - prev) / prev) * 100
+                    
+                    results.append({
+                        'ticker': ticker,
+                        'name': name,
+                        'change_pct': round(change_pct, 2),
+                    })
+            except:
+                pass
+        
+        results.sort(key=lambda x: x['change_pct'], reverse=True)
+        return results
+    
+    def get_upcoming_events(self) -> list[dict]:
+        """Get upcoming market events (static for now, could be scraped)."""
+        from datetime import datetime, timedelta
+        
+        # Common recurring events
+        events = []
+        today = datetime.now()
+        
+        # Find next FOMC meeting (typically every 6 weeks)
+        # This is simplified - in production you'd scrape the Fed calendar
+        fomc_dates = [
+            ('2026-01-28', 'Fed Meeting Day 1'),
+            ('2026-01-29', 'Fed Meeting Day 2 + Rate Decision'),
+            ('2026-03-17', 'Fed Meeting Day 1'),
+            ('2026-03-18', 'Fed Meeting Day 2 + Rate Decision'),
+        ]
+        
+        for date_str, name in fomc_dates:
+            event_date = datetime.strptime(date_str, '%Y-%m-%d')
+            if event_date >= today:
+                events.append({
+                    'date': date_str,
+                    'name': name,
+                    'type': 'fomc',
+                })
+        
+        # Jobs report (first Friday of month)
+        events.append({
+            'date': '2026-02-07',
+            'name': 'Jobs Report',
+            'type': 'economic',
+        })
+        
+        # CPI (usually mid-month)
+        events.append({
+            'date': '2026-01-15',
+            'name': 'CPI Report',
+            'type': 'economic',
+        })
+        
+        events.sort(key=lambda x: x['date'])
+        return events[:6]
+
+
 def get_flow_data() -> dict:
     """Get all flow data in one call."""
     scraper = FlowScraper()
@@ -562,5 +676,8 @@ def get_flow_data() -> dict:
         'most_active': scraper.get_most_active_options(),
         'movers': scraper.get_market_movers(),
         'sentiment': scraper.get_fear_greed_index(),
+        'indices': scraper.get_market_indices(),
+        'sectors': scraper.get_sector_performance(),
+        'events': scraper.get_upcoming_events(),
         'timestamp': datetime.now().isoformat(),
     }

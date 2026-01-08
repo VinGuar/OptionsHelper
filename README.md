@@ -1,26 +1,46 @@
 # Options Edge Scanner
 
-A scanner that finds stocks matching proven options trading strategies. No AI/LLM needed - just filters based on documented market edges that output actionable trade candidates.
+A web app that scans stocks for options trading opportunities using rule-based strategies. Get actionable trade setups with exact strikes, step-by-step execution instructions, and real-time market sentiment. Plus a dedicated News & Flow page with whale activity tracking, unusual options flow, sector performance, Fear & Greed index, and curated market news.
 
-## Quick Start
+## 🌐 Live Demo
+
+**Try it now:** [https://options-helper.vercel.app/](https://options-helper.vercel.app/)
+
+## Features
+
+### 📊 Scanner Page
+- **5 Pre-built Strategies** - Select from trend-following, IV crush, mean reversion, breakout momentum, and iron condor strategies
+- **Quick or Full Scan** - Scan 30 popular tickers or the full S&P 100
+- **Real-time Progress** - Watch as tickers are scanned with live progress updates
+- **Trade Details** - Click any candidate to see exactly how to execute the trade
+- **Step-by-Step Instructions** - Expandable explanations for each trade type
+- **Export to CSV** - Download your scan results for analysis
+- **Cached Results** - Results persist per strategy with timestamps (stored locally in your browser)
+
+### 📰 News & Flow Page
+- **Market Indices** - Live S&P 500, DOW, NASDAQ, and VIX levels
+- **Fear & Greed Index** - Real-time market sentiment indicator
+- **Sector Performance** - See which sectors are hot or cold
+- **Upcoming Events** - Economic calendar for macro events
+- **Unusual Options Flow** - Aggregated whale activity by ticker showing net bullish/bearish sentiment
+- **Market News** - Stock-specific news with sentiment categorization
+- **Independent Refresh** - Refresh market data, flow, or news separately
+
+## Quick Start (Local Development)
 
 ```bash
+# Clone the repository
+git clone https://github.com/VinGuar/OptionsHelper.git
+cd OptionsHelper
+
 # Install dependencies
 pip install -r requirements.txt
 
-# List available strategies
-python quick_scan.py --list
+# Run the web app
+python app.py
 
-# Quick scan with strategy selection (interactive)
-python quick_scan.py
-
-# Quick scan with specific strategy
-python quick_scan.py -s 1          # By number
-python quick_scan.py -s trend      # By name
-python quick_scan.py -s condor     # Iron Condor
-
-# Full S&P 100 scan (interactive strategy selection)
-python scanner.py
+# Open in browser
+# http://localhost:5000
 ```
 
 ## Available Strategies
@@ -35,30 +55,101 @@ python scanner.py
 
 See `STRATEGIES.txt` for detailed documentation on each strategy.
 
+## How to Use
+
+### 1. Select a Strategy
+Click on any of the 5 strategy cards on the left panel. Each shows:
+- Expected win rate
+- Risk level
+- Typical holding period
+
+### 2. Run a Scan
+- Choose **Quick** (30 tickers) for fast results
+- Choose **Full S&P 100** for comprehensive scanning
+- Click **RUN SCAN** and watch the progress
+
+### 3. Review Candidates
+- Results show ticker, direction, trade type, signal strength, and key metrics
+- Click any row to see detailed trade instructions
+
+### 4. Execute the Trade
+The details panel shows:
+- **Exact strikes** to buy/sell
+- **Expiration** timeframe
+- **Step-by-step broker instructions**
+- **Profit/loss scenarios**
+- **Why this trade** for the strategy
+
+### 5. Manage Risk
+- Use the exit rules shown (take profit %, stop loss %)
+- Never risk more than 2% per trade
+- Paper trade first!
+
 ## Project Structure
 
 ```
 Options/
-├── scanner.py              # Full scanner with strategy selection
-├── quick_scan.py           # Fast 25-ticker scan
-├── config.py               # Settings and S&P 100 ticker list
+├── app.py                  # Flask web server
+├── scanner.py              # Console full scanner
+├── quick_scan.py           # Console quick scanner
+├── config.py               # Settings and ticker lists
 ├── STRATEGIES.txt          # Detailed strategy documentation
 ├── requirements.txt        # Dependencies
+├── web/
+│   ├── templates/
+│   │   ├── index.html      # Scanner page
+│   │   └── news.html       # News & Flow page
+│   └── static/
+│       ├── css/
+│       │   ├── style.css   # Main styles
+│       │   └── news.css    # News page styles
+│       ├── js/
+│       │   ├── app.js      # Scanner functionality
+│       │   └── news.js     # News page functionality
+│       └── favicon.svg     # Site icon
 └── src/
-    ├── strategies/         # Each strategy in its own file
-    │   ├── base.py                  # Base strategy class
-    │   ├── trend_following_debit.py # Strategy 1
-    │   ├── iv_crush_credit.py       # Strategy 2
-    │   ├── mean_reversion_otm.py    # Strategy 3
-    │   ├── breakout_momentum.py     # Strategy 4
-    │   ├── iron_condor_range.py     # Strategy 5
-    │   └── loader.py                # Strategy loader
+    ├── strategies/         # Strategy implementations
+    │   ├── base.py
+    │   ├── trend_following_debit.py
+    │   ├── iv_crush_credit.py
+    │   ├── mean_reversion_otm.py
+    │   ├── breakout_momentum.py
+    │   ├── iron_condor_range.py
+    │   └── loader.py
     ├── data/
-    │   ├── market_data.py   # Price/options fetcher (Yahoo Finance)
-    │   └── news_scraper.py  # News from RSS feeds
+    │   ├── market_data.py  # Price/options fetcher
+    │   ├── news_scraper.py # News from RSS feeds
+    │   └── flow_scraper.py # Unusual flow & market data
     └── analysis/
-        ├── filters.py       # Legacy filters (still works)
-        └── candidates.py    # Spread generator
+        ├── filters.py      # Edge detection filters
+        └── candidates.py   # Spread generator
+```
+
+## Data Sources (Free, No API Key Required)
+
+- **Prices & Options**: Yahoo Finance (via yfinance)
+- **News**: RSS feeds (Yahoo Finance, Google News, MarketWatch, Finviz)
+- **Fear & Greed**: feargreedmeter.com, CNN fallback
+- **Market Data**: Yahoo Finance for indices, sectors, and events
+
+## Console Usage (Alternative)
+
+You can also run the scanner from the command line:
+
+```bash
+# List available strategies
+python quick_scan.py --list
+
+# Quick scan with strategy selection (interactive)
+python quick_scan.py
+
+# Quick scan with specific strategy
+python quick_scan.py -s 1          # By number
+python quick_scan.py -s trend      # By name
+python quick_scan.py -s condor     # Iron Condor
+
+# Full S&P 100 scan (interactive strategy selection)
+python scanner.py
 ```
 
 ## Adding New Strategies
@@ -85,48 +176,7 @@ class MyStrategy(BaseStrategy):
         pass
 ```
 
-## Data Sources (Free, No API Key)
-
-- **Prices & Options**: Yahoo Finance (via yfinance)
-- **News**: RSS feeds (Yahoo Finance, Google News, MarketWatch)
-
-## Example Output
-
-```
-============================================================
-QUICK SCANNER - Iron Condor Range
-============================================================
-Time: 2026-01-07 22:22:42
-Tickers: 25
-Win Rate: 72% | Risk: MEDIUM
-
-[OK] 10/25 passed
-
-------------------------------------------------------------
-Ticker   Direction  Type              Strength
-------------------------------------------------------------
-MSFT     NEUTRAL    IRON_CONDOR            85%
-PFE      NEUTRAL    IRON_CONDOR            85%
-HD       NEUTRAL    IRON_CONDOR            85%
-MCD      NEUTRAL    IRON_CONDOR            75%
-META     NEUTRAL    IRON_CONDOR            70%
-------------------------------------------------------------
-
-TOP PICK: MSFT
-  Direction: NEUTRAL
-  Trade: IRON_CONDOR
-  Price: $483.47
-  20D Return: -1.5%
-
-  Why:
-    - Range-bound: 5D -0.8%, 20D -1.5%
-    - MAs flat: spread 2.1%
-    - RSI 59 (neutral)
-```
-
 ## Why These Edges Work
-
-From the research discussion this is based on:
 
 1. **These edges are small** - expect 0.3-1% per trade
 2. **Requires discipline** - most people abandon before they compound
@@ -143,6 +193,17 @@ The edge isn't rare. The ability to stick with it is.
 - Check earnings dates before EVERY trade
 - Paper trade first (at least 20 trades)
 
+## Tech Stack
+
+- **Backend**: Python, Flask
+- **Frontend**: Vanilla HTML/CSS/JavaScript
+- **Data**: yfinance, feedparser, BeautifulSoup
+- **Hosting**: Vercel
+
 ## Disclaimer
 
 Educational purposes only. Options trading involves significant risk. Past performance doesn't guarantee future results. Always paper trade first.
+
+---
+
+Made with ◈ for options traders who want edge, not predictions.

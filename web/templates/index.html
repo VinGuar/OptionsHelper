@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Options Edge Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -38,30 +39,32 @@
             <!-- Left Panel: Strategy Selection -->
             <aside class="panel panel-strategies">
                 <h2 class="panel-title">SELECT STRATEGY</h2>
-                <div class="strategies-list" id="strategies-list">
+                <div class="strategies-list-scroll" id="strategies-list">
                     <!-- Populated by JS -->
                 </div>
                 
-                <div class="scan-options">
-                    <h3>SCAN TYPE</h3>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="scan-type" value="quick" checked>
-                            <span class="radio-custom"></span>
-                            <span>Quick (30 tickers)</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="scan-type" value="full">
-                            <span class="radio-custom"></span>
-                            <span>Full S&P 100</span>
-                        </label>
+                <div class="scan-controls">
+                    <div class="scan-options">
+                        <h3>SCAN TYPE</h3>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="scan-type" value="quick" checked>
+                                <span class="radio-custom"></span>
+                                <span>Quick (30 tickers)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="scan-type" value="full">
+                                <span class="radio-custom"></span>
+                                <span>Full S&P 100</span>
+                            </label>
+                        </div>
                     </div>
+                    
+                    <button class="btn-scan" id="btn-scan">
+                        <span class="btn-icon">▶</span>
+                        <span>RUN SCAN</span>
+                    </button>
                 </div>
-                
-                <button class="btn-scan" id="btn-scan">
-                    <span class="btn-icon">▶</span>
-                    <span>RUN SCAN</span>
-                </button>
             </aside>
 
             <!-- Center Panel: Results -->
@@ -69,6 +72,7 @@
                 <div class="results-header">
                     <h2 class="panel-title">SCAN RESULTS</h2>
                     <div class="results-meta" id="results-meta"></div>
+                    <div class="results-timestamp" id="results-timestamp"></div>
                 </div>
                 
                 <!-- Progress Bar -->
@@ -79,8 +83,8 @@
                     <div class="progress-text" id="progress-text">Scanning...</div>
                 </div>
                 
-                <!-- Results Table -->
-                <div class="results-table-container" id="results-container">
+                <!-- Results Table - Scrollable -->
+                <div class="results-table-scroll" id="results-container">
                     <div class="empty-state" id="empty-state">
                         <div class="empty-icon">◇</div>
                         <p>Select a strategy and run a scan to find trade candidates</p>
