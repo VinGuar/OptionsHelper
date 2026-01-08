@@ -59,6 +59,18 @@ def news_page():
     return render_template('news.html')
 
 
+@app.route('/market')
+def market_page():
+    """Current Market page."""
+    return render_template('market.html')
+
+
+@app.route('/tools')
+def tools_page():
+    """Trading Tools page."""
+    return render_template('tools.html')
+
+
 @app.route('/api/strategies')
 def get_strategies():
     """Get list of available strategies."""
@@ -287,6 +299,49 @@ def get_market():
             'most_active': [],
             'timestamp': datetime.now().isoformat(),
         })
+
+
+@app.route('/api/earnings')
+def get_earnings():
+    """Get upcoming earnings calendar."""
+    filter_type = request.args.get('filter', 'this-week')
+    
+    try:
+        scraper = FlowScraper()
+        earnings = scraper.get_earnings_calendar(filter_type)
+        return jsonify({
+            'earnings': earnings,
+            'filter': filter_type,
+            'timestamp': datetime.now().isoformat(),
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'earnings': [],
+            'filter': filter_type,
+            'timestamp': datetime.now().isoformat(),
+        })
+
+
+@app.route('/api/quote/<ticker>')
+def get_quote(ticker):
+    """Get quick quote for a ticker."""
+    try:
+        fetcher = MarketDataFetcher([ticker.upper()])
+        data = fetcher.get_ticker_data(ticker.upper())
+        
+        if data:
+            return jsonify({
+                'ticker': ticker.upper(),
+                'price': data.get('price'),
+                'change_pct': data.get('return_1d', 0) * 100 if data.get('return_1d') else None,
+                'iv_rank': data.get('iv_rank'),
+                'timestamp': datetime.now().isoformat(),
+            })
+        else:
+            return jsonify({'error': 'Could not fetch data'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

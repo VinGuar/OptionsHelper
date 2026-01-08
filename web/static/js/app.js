@@ -10,6 +10,74 @@ class OptionsScanner {
         this.strategiesData = [];
         this.CACHE_KEY = 'options_scanner_cache';
         
+        // Edge explanations for each strategy
+        this.edgeExplanations = {
+            '1': {
+                title: 'Why Trend Following Works',
+                content: `
+                    <p><strong>The Edge:</strong> When a stock is trending (price > MA20 > MA50 with momentum), it has a higher probability of continuing than reversing. This is the "momentum factor" - one of the most documented anomalies in finance.</p>
+                    <ul>
+                        <li>Academic research shows momentum has ~0.5% monthly alpha historically</li>
+                        <li>Trends persist longer than random walk theory suggests</li>
+                        <li>Institutions and algorithms trend-follow, reinforcing the pattern</li>
+                    </ul>
+                    <p><strong>Why Debit Spreads:</strong> Defined risk (can't lose more than you pay), cheaper than naked options, less affected by IV crush, and selling the OTM leg reduces theta decay.</p>
+                `
+            },
+            '2': {
+                title: 'Why IV Crush Works',
+                content: `
+                    <p><strong>The Edge:</strong> Implied volatility consistently OVERESTIMATES actual realized volatility. This is called the "volatility risk premium" - the market pays extra for insurance.</p>
+                    <ul>
+                        <li>IV overprices realized vol by 2-4% annually on average</li>
+                        <li>Post-earnings, IV collapses rapidly (IV crush)</li>
+                        <li>Most options expire worthless</li>
+                        <li>Time decay accelerates as expiration approaches</li>
+                    </ul>
+                    <p><strong>Why Credit Spreads:</strong> Collect premium upfront, profit if stock stays flat OR moves slightly your way, defined risk, and theta works for you.</p>
+                `
+            },
+            '3': {
+                title: 'Why Mean Reversion Works',
+                content: `
+                    <p><strong>The Edge:</strong> Markets overreact to news in the short term. When RSI hits extremes (&lt;25 or &gt;75), stocks have a statistical tendency to revert toward the mean.</p>
+                    <ul>
+                        <li>RSI extremes precede reversals ~55-60% of the time</li>
+                        <li>Oversold bounces and overbought pullbacks are well-documented</li>
+                        <li>OTM options are cheap, so small moves = big % gains</li>
+                        <li>Asymmetric risk/reward (lose 100% or gain 200%+)</li>
+                    </ul>
+                    <p><strong>Why OTM Options:</strong> Very cheap (small dollar risk), huge upside if correct (2-5x possible), defined risk, and you don't need to be exactly right on magnitude.</p>
+                `
+            },
+            '4': {
+                title: 'Why Breakouts Work',
+                content: `
+                    <p><strong>The Edge:</strong> Breakouts work because of short covering, breakout traders piling in, media attention, and psychology (resistance becomes support).</p>
+                    <ul>
+                        <li>52-week high breakouts continue ~60% of the time</li>
+                        <li>"Stocks making new highs tend to keep making new highs"</li>
+                        <li>Works best in bull markets</li>
+                        <li>Volume confirmation improves odds</li>
+                    </ul>
+                    <p><strong>Why Calls/Call Spreads:</strong> Leverage the upside move, defined risk, capture explosive moves, and time is somewhat on your side if stock keeps moving.</p>
+                `
+            },
+            '5': {
+                title: 'Why Iron Condors Work',
+                content: `
+                    <p><strong>The Edge:</strong> Most stocks, most of the time, don't make huge moves. Iron condors exploit this statistical reality.</p>
+                    <ul>
+                        <li>Stocks are range-bound ~70% of the time</li>
+                        <li>You collect premium from BOTH directions</li>
+                        <li>Theta decay works for you on both sides</li>
+                        <li>Even small moves in either direction are fine</li>
+                    </ul>
+                    <p><strong>Why Iron Condors:</strong> Profit from doing nothing (stock stays flat), collect premium from both bullish and bearish traders, defined risk on both sides, and wide profit zone.</p>
+                `
+            }
+        };
+        
         this.init();
     }
     
@@ -72,7 +140,13 @@ class OptionsScanner {
         document.getElementById('results-timestamp').innerHTML = '';
         document.getElementById('details-content').innerHTML = `
             <div class="empty-details">
-                Click a candidate to view details
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-bottom: 12px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>Click a result to view trade details</span>
             </div>
         `;
         document.getElementById('btn-export').disabled = true;
@@ -91,14 +165,27 @@ class OptionsScanner {
     
     renderStrategies(strategies) {
         const container = document.getElementById('strategies-list');
-        container.innerHTML = strategies.map(s => `
+        container.innerHTML = strategies.map(s => {
+            const edgeInfo = this.edgeExplanations[s.key] || { title: 'Edge Information', content: '<p>No edge information available.</p>' };
+            return `
             <div class="strategy-card ${s.key === this.selectedStrategy ? 'selected' : ''}" 
                  data-key="${s.key}">
-                <div class="strategy-name">
-                    <span class="num">${s.key}</span>
-                    ${s.name}
+                <div class="strategy-header-row">
+                    <div class="strategy-name">
+                        <span class="num">${s.key}</span>
+                        ${s.name}
+                    </div>
+                    <button class="btn-edge-info" data-strategy-key="${s.key}" title="Why this is an edge">
+                        <span class="edge-icon">ℹ</span>
+                    </button>
                 </div>
                 <div class="strategy-desc">${s.description}</div>
+                <div class="strategy-edge-expanded" id="edge-${s.key}" style="display: none;">
+                    <div class="edge-content">
+                        <h4>${edgeInfo.title}</h4>
+                        ${edgeInfo.content}
+                    </div>
+                </div>
                 <div class="strategy-meta">
                     <span class="win-rate">${Math.round(s.expected_win_rate * 100)}% win</span>
                     <span class="risk-${s.risk_level.includes('high') ? 'high' : 'medium'}">
@@ -107,12 +194,29 @@ class OptionsScanner {
                     <span>${s.typical_hold_days}D hold</span>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
+        
+        // Bind edge info button events
+        container.querySelectorAll('.btn-edge-info').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const key = btn.dataset.strategyKey;
+                const expanded = document.getElementById(`edge-${key}`);
+                const isVisible = expanded.style.display !== 'none';
+                expanded.style.display = isVisible ? 'none' : 'block';
+                btn.classList.toggle('active', !isVisible);
+            });
+        });
     }
     
     bindEvents() {
         // Strategy selection
         document.getElementById('strategies-list').addEventListener('click', (e) => {
+            // Don't select strategy if clicking on edge info button
+            if (e.target.closest('.btn-edge-info')) {
+                return;
+            }
             const card = e.target.closest('.strategy-card');
             if (card) {
                 this.selectStrategy(card.dataset.key);
@@ -308,9 +412,21 @@ class OptionsScanner {
             const ret20d = c.return_20d || 0;
             const retClass = ret20d >= 0 ? 'positive' : 'negative';
             
+            // Build reasons list for edge explanation
+            const reasonsList = c.reasons && c.reasons.length > 0 
+                ? `<ul>${c.reasons.map(r => `<li>${r}</li>`).join('')}</ul>`
+                : '<p>No specific reasons provided.</p>';
+            
             return `
                 <tr data-ticker="${c.ticker}" class="${c.passed ? '' : 'failed'}">
-                    <td class="ticker">${c.ticker}</td>
+                    <td class="ticker">
+                        <div class="ticker-with-edge">
+                            ${c.ticker}
+                            <button class="btn-edge-info-small" data-ticker="${c.ticker}" title="Why this passed">
+                                <span class="edge-icon">ℹ</span>
+                            </button>
+                        </div>
+                    </td>
                     <td>
                         <span class="direction ${dirClass}">
                             ${dirIcon} ${c.direction || 'N/A'}
@@ -322,8 +438,30 @@ class OptionsScanner {
                     <td class="${retClass}">${ret20d >= 0 ? '+' : ''}${ret20d.toFixed(1)}%</td>
                     <td>${c.iv_rank ? c.iv_rank.toFixed(0) : '-'}</td>
                 </tr>
+                <tr class="edge-row" id="edge-row-${c.ticker}" style="display: none;">
+                    <td colspan="7" class="edge-cell">
+                        <div class="edge-content">
+                            <h4>Why ${c.ticker} Passed</h4>
+                            <p><strong>Signal Strength:</strong> ${c.signal_strength.toFixed(0)}%</p>
+                            <p><strong>Reasons:</strong></p>
+                            ${reasonsList}
+                        </div>
+                    </td>
+                </tr>
             `;
         }).join('');
+        
+        // Bind edge info button events for scan results
+        tbody.querySelectorAll('.btn-edge-info-small').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const ticker = btn.dataset.ticker;
+                const edgeRow = document.getElementById(`edge-row-${ticker}`);
+                const isVisible = edgeRow.style.display !== 'none';
+                edgeRow.style.display = isVisible ? 'none' : 'table-row';
+                btn.classList.toggle('active', !isVisible);
+            });
+        });
         
         // Select first passed candidate
         const firstPassed = data.candidates.find(c => c.passed);

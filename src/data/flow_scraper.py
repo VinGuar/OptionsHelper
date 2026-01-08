@@ -665,6 +665,87 @@ class FlowScraper:
         
         events.sort(key=lambda x: x['date'])
         return events[:6]
+    
+    def get_earnings_calendar(self, filter_type: str = 'this-week') -> list[dict]:
+        """
+        Get upcoming earnings calendar.
+        Uses Yahoo Finance to get earnings dates for major tickers.
+        """
+        earnings = []
+        today = datetime.now()
+        
+        # Define date ranges based on filter
+        if filter_type == 'this-week':
+            start_date = today
+            end_date = today + timedelta(days=7)
+        elif filter_type == 'next-week':
+            start_date = today + timedelta(days=7)
+            end_date = today + timedelta(days=14)
+        else:
+            # Watchlist - would need user's watchlist
+            start_date = today
+            end_date = today + timedelta(days=14)
+        
+        # Major tickers to check for earnings
+        tickers = [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD',
+            'NFLX', 'CRM', 'JPM', 'BAC', 'GS', 'V', 'MA', 'XOM', 'CVX',
+            'JNJ', 'UNH', 'PFE', 'WMT', 'HD', 'MCD', 'NKE', 'SBUX',
+            'KO', 'PEP', 'COST', 'DIS', 'PYPL', 'INTC', 'QCOM', 'AVGO',
+            'ADBE', 'NOW', 'SNOW', 'NET', 'DDOG', 'ZS', 'CRWD', 'PANW'
+        ]
+        
+        for ticker in tickers:
+            try:
+                stock = yf.Ticker(ticker)
+                calendar = stock.calendar
+                
+                if calendar is None or calendar.empty:
+                    continue
+                
+                # Get earnings date
+                earnings_date = None
+                if 'Earnings Date' in calendar.index:
+                    earnings_date = calendar.loc['Earnings Date']
+                    if isinstance(earnings_date, pd.Series):
+                        earnings_date = earnings_date.iloc[0]
+                
+                if earnings_date is None:
+                    continue
+                
+                # Convert to datetime if needed
+                if hasattr(earnings_date, 'to_pydatetime'):
+                    earnings_date = earnings_date.to_pydatetime()
+                elif isinstance(earnings_date, str):
+                    earnings_date = datetime.strptime(earnings_date[:10], '%Y-%m-%d')
+                
+                # Check if in range
+                if start_date <= earnings_date <= end_date:
+                    # Get EPS estimate
+                    eps_estimate = None
+                    if 'Earnings Average' in calendar.index:
+                        eps_estimate = calendar.loc['Earnings Average']
+                        if isinstance(eps_estimate, pd.Series):
+                            eps_estimate = eps_estimate.iloc[0]
+                    
+                    # Determine time (BMO = before market open, AMC = after market close)
+                    # This is a simplification - actual time would need to be scraped
+                    time = 'amc'  # Default to after close
+                    
+                    earnings.append({
+                        'ticker': ticker,
+                        'date': earnings_date.strftime('%Y-%m-%d'),
+                        'time': time,
+                        'estimate': f"{eps_estimate:.2f}" if eps_estimate else None,
+                    })
+                    
+            except Exception:
+                continue
+        
+        # Sort by date
+        earnings.sort(key=lambda x: x['date'])
+        
+        return earnings
 
 
 def get_flow_data() -> dict:

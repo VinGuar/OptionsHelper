@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Real-time market data, charts, indices, and market movers">
+    <meta name="theme-color" content="#0a0e14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Current Market | Options Edge Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="apple-touch-icon" href="/static/favicon.svg">
+    <!-- Preconnect for faster font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/news.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Critical CSS for above-the-fold content -->
+    <style>
+        body { background: #0a0e14; color: #e6edf3; }
+        .app { display: flex; flex-direction: column; min-height: 100vh; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">OPTIONS EDGE SCANNER</span>
+                </a>
+            </div>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">Scanner</a>
+                <a href="/news" class="nav-tab">News & Flow</a>
+                <a href="/market" class="nav-tab active">Current Market</a>
+                <a href="/tools" class="nav-tab">Tools</a>
+            </nav>
+            <div class="header-actions">
+                <button class="btn-refresh" id="btn-refresh-all">
+                    <span class="refresh-icon">↻</span> Refresh All
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content - Scrollable -->
+        <main class="news-main-scroll">
+            
+            <!-- Top Bar: Market Overview -->
+            <section class="market-bar">
+                <div class="market-bar-inner">
+                    <div class="index-item" id="index-spy">
+                        <span class="index-name">S&P 500</span>
+                        <span class="index-price">--</span>
+                        <span class="index-change">--</span>
+                    </div>
+                    <div class="index-item" id="index-dow">
+                        <span class="index-name">DOW</span>
+                        <span class="index-price">--</span>
+                        <span class="index-change">--</span>
+                    </div>
+                    <div class="index-item" id="index-nasdaq">
+                        <span class="index-name">NASDAQ</span>
+                        <span class="index-price">--</span>
+                        <span class="index-change">--</span>
+                    </div>
+                    <div class="index-item" id="index-vix">
+                        <span class="index-name">VIX</span>
+                        <span class="index-price">--</span>
+                        <span class="index-change">--</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Fear & Greed + Sentiment History -->
+            <section class="sentiment-section">
+                <div class="sentiment-main-card">
+                    <div class="card-header-inline">
+                        <div class="header-title-row">
+                            <h2>📊 Fear & Greed Index</h2>
+                            <button class="btn-sm" id="btn-refresh-market" title="Refresh Market Data">
+                                <span class="refresh-icon">↻</span>
+                            </button>
+                        </div>
+                        <div class="card-timestamp-small" id="sentiment-timestamp">
+                            <span class="timestamp-icon">🕐</span>
+                            <span class="timestamp-text">Not yet loaded</span>
+                        </div>
+                    </div>
+                    <div class="sentiment-gauge">
+                        <div class="gauge-visual">
+                            <div class="gauge-arc"></div>
+                            <div class="gauge-needle" id="gauge-needle"></div>
+                        </div>
+                        <div class="gauge-value" id="fg-value">--</div>
+                        <div class="gauge-label" id="fg-label">Loading...</div>
+                    </div>
+                    <div class="sentiment-source" id="fg-source"></div>
+                </div>
+                
+                <div class="sentiment-history-card">
+                    <div class="card-header-inline">
+                        <h3>📈 Sentiment Trend</h3>
+                        <div class="card-timestamp-small" id="sentiment-history-timestamp">
+                            <span class="timestamp-icon">🕐</span>
+                            <span class="timestamp-text">Not yet loaded</span>
+                        </div>
+                    </div>
+                    <div class="history-items">
+                        <div class="history-item">
+                            <span class="history-label">Now</span>
+                            <span class="history-value" id="hist-now">--</span>
+                        </div>
+                        <div class="history-item">
+                            <span class="history-label">Yesterday</span>
+                            <span class="history-value" id="hist-yesterday">--</span>
+                        </div>
+                        <div class="history-item">
+                            <span class="history-label">1 Week Ago</span>
+                            <span class="history-value" id="hist-week">--</span>
+                        </div>
+                        <div class="history-item">
+                            <span class="history-label">1 Month Ago</span>
+                            <span class="history-value" id="hist-month">--</span>
+                        </div>
+                    </div>
+                    <div class="sentiment-change" id="sentiment-change"></div>
+                </div>
+                
+                <div class="market-summary-card">
+                    <div class="card-header-inline">
+                        <h3>🎯 Market Summary</h3>
+                        <div class="card-timestamp-small" id="market-summary-timestamp">
+                            <span class="timestamp-icon">🕐</span>
+                            <span class="timestamp-text">Not yet loaded</span>
+                        </div>
+                    </div>
+                    <div class="summary-text" id="market-summary">
+                        Click refresh to load market data...
+                    </div>
+                </div>
+            </section>
+
+            <!-- Interactive Chart Section -->
+            <section class="chart-section">
+                <div class="chart-header">
+                    <h2>📈 Market Chart</h2>
+                    <div class="chart-controls">
+                        <input type="text" id="chart-ticker-input" class="chart-input" placeholder="Enter ticker..." maxlength="5">
+                        <select id="chart-symbol" class="chart-select">
+                            <optgroup label="Indices">
+                                <option value="SPY">SPY - S&P 500</option>
+                                <option value="QQQ">QQQ - NASDAQ 100</option>
+                                <option value="DIA">DIA - Dow Jones</option>
+                                <option value="IWM">IWM - Russell 2000</option>
+                            </optgroup>
+                            <optgroup label="Tech">
+                                <option value="AAPL">AAPL - Apple</option>
+                                <option value="MSFT">MSFT - Microsoft</option>
+                                <option value="NVDA">NVDA - NVIDIA</option>
+                                <option value="TSLA">TSLA - Tesla</option>
+                                <option value="AMD">AMD</option>
+                                <option value="META">META - Meta</option>
+                                <option value="AMZN">AMZN - Amazon</option>
+                                <option value="GOOGL">GOOGL - Google</option>
+                                <option value="NFLX">NFLX - Netflix</option>
+                                <option value="INTC">INTC - Intel</option>
+                            </optgroup>
+                            <optgroup label="Finance">
+                                <option value="JPM">JPM - JP Morgan</option>
+                                <option value="BAC">BAC - Bank of America</option>
+                                <option value="GS">GS - Goldman Sachs</option>
+                                <option value="V">V - Visa</option>
+                                <option value="MA">MA - Mastercard</option>
+                            </optgroup>
+                            <optgroup label="Energy">
+                                <option value="XOM">XOM - Exxon Mobil</option>
+                                <option value="CVX">CVX - Chevron</option>
+                                <option value="OXY">OXY - Occidental</option>
+                                <option value="SLB">SLB - Schlumberger</option>
+                            </optgroup>
+                            <optgroup label="Healthcare">
+                                <option value="JNJ">JNJ - Johnson & Johnson</option>
+                                <option value="UNH">UNH - UnitedHealth</option>
+                                <option value="PFE">PFE - Pfizer</option>
+                                <option value="MRNA">MRNA - Moderna</option>
+                            </optgroup>
+                            <optgroup label="Consumer">
+                                <option value="WMT">WMT - Walmart</option>
+                                <option value="HD">HD - Home Depot</option>
+                                <option value="MCD">MCD - McDonald's</option>
+                                <option value="NKE">NKE - Nike</option>
+                                <option value="SBUX">SBUX - Starbucks</option>
+                                <option value="KO">KO - Coca-Cola</option>
+                                <option value="DIS">DIS - Disney</option>
+                            </optgroup>
+                            <optgroup label="Meme/Speculative">
+                                <option value="GME">GME - GameStop</option>
+                                <option value="AMC">AMC - AMC</option>
+                                <option value="PLTR">PLTR - Palantir</option>
+                                <option value="COIN">COIN - Coinbase</option>
+                                <option value="RIVN">RIVN - Rivian</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container" id="tradingview-chart">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_widget" style="height:100%;width:100%"></div>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </section>
+
+            <!-- Two Column Layout -->
+            <div class="two-column-layout">
+                
+                <!-- Left Column -->
+                <div class="left-column">
+                    
+                    <!-- Top Movers -->
+                    <section class="card-section">
+                        <div class="card-header">
+                            <div class="header-title-row">
+                                <h2>📈 Top Gainers</h2>
+                                <button class="btn-sm" id="btn-refresh-gainers" title="Refresh Gainers">
+                                    <span class="refresh-icon">↻</span>
+                                </button>
+                            </div>
+                            <div class="card-timestamp-small" id="gainers-timestamp">
+                                <span class="timestamp-icon">🕐</span>
+                                <span class="timestamp-text">Not yet loaded</span>
+                            </div>
+                        </div>
+                        <div class="movers-list" id="gainers-list">
+                            <div class="loading-state small">Loading...</div>
+                        </div>
+                    </section>
+                    
+                    <section class="card-section">
+                        <div class="card-header">
+                            <div class="header-title-row">
+                                <h2>📉 Top Losers</h2>
+                                <button class="btn-sm" id="btn-refresh-losers" title="Refresh Losers">
+                                    <span class="refresh-icon">↻</span>
+                                </button>
+                            </div>
+                            <div class="card-timestamp-small" id="losers-timestamp">
+                                <span class="timestamp-icon">🕐</span>
+                                <span class="timestamp-text">Not yet loaded</span>
+                            </div>
+                        </div>
+                        <div class="movers-list" id="losers-list">
+                            <div class="loading-state small">Loading...</div>
+                        </div>
+                    </section>
+                    
+                    <!-- Most Active Options -->
+                    <section class="card-section">
+                        <div class="card-header">
+                            <div class="header-title-row">
+                                <h2>🔥 Most Active Options</h2>
+                                <button class="btn-sm" id="btn-refresh-active" title="Refresh Most Active">
+                                    <span class="refresh-icon">↻</span>
+                                </button>
+                            </div>
+                            <div class="card-timestamp-small" id="active-timestamp">
+                                <span class="timestamp-icon">🕐</span>
+                                <span class="timestamp-text">Not yet loaded</span>
+                            </div>
+                        </div>
+                        <div class="active-list" id="active-list">
+                            <div class="loading-state small">Loading...</div>
+                        </div>
+                    </section>
+                    
+                </div>
+                
+                <!-- Right Column -->
+                <div class="right-column">
+                    
+                    <!-- Sector Performance -->
+                    <section class="card-section compact">
+                        <div class="card-header">
+                            <div class="header-title-row">
+                                <h3>🏭 Sector Performance</h3>
+                                <button class="btn-sm" id="btn-refresh-sectors" title="Refresh Sectors">
+                                    <span class="refresh-icon">↻</span>
+                                </button>
+                            </div>
+                            <div class="card-timestamp-small" id="sector-timestamp">
+                                <span class="timestamp-icon">🕐</span>
+                                <span class="timestamp-text">Not yet loaded</span>
+                            </div>
+                        </div>
+                        <div class="sector-list" id="sector-list">
+                            <div class="loading-state small">Loading...</div>
+                        </div>
+                    </section>
+                    
+                    <!-- Upcoming Events -->
+                    <section class="card-section compact">
+                        <div class="card-header">
+                            <div class="header-title-row">
+                                <h3>📅 Upcoming Events</h3>
+                                <button class="btn-sm" id="btn-refresh-events" title="Refresh Events">
+                                    <span class="refresh-icon">↻</span>
+                                </button>
+                            </div>
+                            <div class="card-timestamp-small" id="events-timestamp">
+                                <span class="timestamp-icon">🕐</span>
+                                <span class="timestamp-text">Not yet loaded</span>
+                            </div>
+                        </div>
+                        <div class="events-list" id="events-list">
+                            <div class="loading-state small">Loading...</div>
+                        </div>
+                    </section>
+                    
+                </div>
+                
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>Data from free sources. Not financial advice. Always verify before trading.</span>
+        </footer>
+    </div>
+
+    <script src="/static/js/market.js"></script>
+    <!-- TradingView Widget Script -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        let tvWidget = null;
+        
+        function initTradingViewChart(symbol = 'SPY') {
+            if (tvWidget) {
+                tvWidget.remove();
+            }
+            
+            tvWidget = new TradingView.widget({
+                "autosize": true,
+                "symbol": symbol,
+                "interval": "D",
+                "timezone": "America/New_York",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#0d1117",
+                "enable_publishing": false,
+                "hide_top_toolbar": false,
+                "hide_legend": false,
+                "save_image": false,
+                "container_id": "tradingview_widget",
+                "hide_volume": false,
+                "studies": [
+                    "RSI@tv-basicstudies",
+                    "MASimple@tv-basicstudies"
+                ],
+                "show_popup_button": true,
+                "popup_width": "1000",
+                "popup_height": "650"
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize chart with SPY
+            setTimeout(() => {
+                initTradingViewChart('SPY');
+            }, 500);
+            
+            // Handle dropdown symbol change
+            document.getElementById('chart-symbol').addEventListener('change', function(e) {
+                initTradingViewChart(e.target.value);
+                document.getElementById('chart-ticker-input').value = '';
+            });
+            
+            // Handle custom ticker input
+            const tickerInput = document.getElementById('chart-ticker-input');
+            tickerInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const ticker = this.value.trim().toUpperCase();
+                    if (ticker) {
+                        initTradingViewChart(ticker);
+                        document.getElementById('chart-symbol').value = '';
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

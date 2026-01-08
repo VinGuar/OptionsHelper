@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Options trading tools - P/L calculator, position tracker, watchlist, and more">
+    <meta name="theme-color" content="#0a0e14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Trading Tools | Options Edge Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="apple-touch-icon" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background: #0a0e14; color: #e6edf3; }
+        .app { display: flex; flex-direction: column; min-height: 100vh; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">OPTIONS EDGE SCANNER</span>
+                </a>
+            </div>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">Scanner</a>
+                <a href="/news" class="nav-tab">News & Flow</a>
+                <a href="/market" class="nav-tab">Current Market</a>
+                <a href="/tools" class="nav-tab active">Tools</a>
+            </nav>
+            <div class="header-actions">
+                <div class="header-status" id="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="tools-main">
+            <!-- Tool Navigation -->
+            <div class="tool-nav">
+                <button class="tool-nav-btn active" data-tool="calculator">
+                    <span class="tool-icon">🧮</span>
+                    <span>P/L Calculator</span>
+                </button>
+                <button class="tool-nav-btn" data-tool="watchlist">
+                    <span class="tool-icon">👁️</span>
+                    <span>Watchlist</span>
+                </button>
+                <button class="tool-nav-btn" data-tool="journal">
+                    <span class="tool-icon">📓</span>
+                    <span>Trade Journal</span>
+                </button>
+                <button class="tool-nav-btn" data-tool="earnings">
+                    <span class="tool-icon">📅</span>
+                    <span>Earnings Calendar</span>
+                </button>
+                <button class="tool-nav-btn" data-tool="learn">
+                    <span class="tool-icon">📚</span>
+                    <span>Learn</span>
+                </button>
+            </div>
+
+            <!-- Calculator Tool -->
+            <section class="tool-panel active" id="tool-calculator">
+                <div class="tool-header">
+                    <h1>🧮 Options P/L Calculator</h1>
+                    <p>Calculate potential profit/loss, breakeven points, and risk/reward for your trades</p>
+                </div>
+
+                <div class="calculator-layout">
+                    <div class="calc-inputs">
+                        <div class="calc-section">
+                            <h3>Trade Setup</h3>
+                            <div class="input-group">
+                                <label>Strategy Type</label>
+                                <select id="calc-strategy">
+                                    <option value="long_call">Long Call</option>
+                                    <option value="long_put">Long Put</option>
+                                    <option value="call_debit">Call Debit Spread</option>
+                                    <option value="put_debit">Put Debit Spread</option>
+                                    <option value="call_credit">Call Credit Spread</option>
+                                    <option value="put_credit">Put Credit Spread</option>
+                                    <option value="iron_condor">Iron Condor</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Stock Price</label>
+                                <input type="number" id="calc-stock-price" value="100" step="0.01">
+                            </div>
+                            <div class="input-group">
+                                <label>Number of Contracts</label>
+                                <input type="number" id="calc-contracts" value="1" min="1">
+                            </div>
+                        </div>
+
+                        <div class="calc-section" id="single-leg-inputs">
+                            <h3>Option Details</h3>
+                            <div class="input-group">
+                                <label>Strike Price</label>
+                                <input type="number" id="calc-strike" value="100" step="0.5">
+                            </div>
+                            <div class="input-group">
+                                <label>Premium Paid/Received</label>
+                                <input type="number" id="calc-premium" value="3.00" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="calc-section" id="spread-inputs" style="display: none;">
+                            <h3>Spread Details</h3>
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label>Long Strike</label>
+                                    <input type="number" id="calc-long-strike" value="100" step="0.5">
+                                </div>
+                                <div class="input-group">
+                                    <label>Short Strike</label>
+                                    <input type="number" id="calc-short-strike" value="105" step="0.5">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label>Net Debit/Credit</label>
+                                <input type="number" id="calc-net-premium" value="2.00" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="calc-section" id="condor-inputs" style="display: none;">
+                            <h3>Iron Condor Details</h3>
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label>Put Buy Strike</label>
+                                    <input type="number" id="calc-put-buy" value="90" step="0.5">
+                                </div>
+                                <div class="input-group">
+                                    <label>Put Sell Strike</label>
+                                    <input type="number" id="calc-put-sell" value="95" step="0.5">
+                                </div>
+                            </div>
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label>Call Sell Strike</label>
+                                    <input type="number" id="calc-call-sell" value="105" step="0.5">
+                                </div>
+                                <div class="input-group">
+                                    <label>Call Buy Strike</label>
+                                    <input type="number" id="calc-call-buy" value="110" step="0.5">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label>Net Credit Received</label>
+                                <input type="number" id="calc-condor-credit" value="1.50" step="0.01">
+                            </div>
+                        </div>
+
+                        <button class="btn-calculate" id="btn-calculate">Calculate P/L</button>
+                    </div>
+
+                    <div class="calc-results">
+                        <div class="result-card highlight">
+                            <div class="result-label">Max Profit</div>
+                            <div class="result-value positive" id="result-max-profit">$0</div>
+                        </div>
+                        <div class="result-card highlight">
+                            <div class="result-label">Max Loss</div>
+                            <div class="result-value negative" id="result-max-loss">$0</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Breakeven</div>
+                            <div class="result-value" id="result-breakeven">$0</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Risk/Reward Ratio</div>
+                            <div class="result-value" id="result-rr">0:0</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Win Rate Needed</div>
+                            <div class="result-value" id="result-winrate">0%</div>
+                        </div>
+                        <div class="result-card full-width">
+                            <div class="result-label">Profit Zone</div>
+                            <div class="result-value" id="result-zone">-</div>
+                        </div>
+
+                        <div class="pl-chart" id="pl-chart">
+                            <canvas id="pl-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Watchlist Tool -->
+            <section class="tool-panel" id="tool-watchlist">
+                <div class="tool-header">
+                    <h1>👁️ Watchlist</h1>
+                    <p>Track stocks you're interested in trading options on</p>
+                </div>
+
+                <div class="watchlist-controls">
+                    <div class="add-ticker">
+                        <input type="text" id="watchlist-ticker" placeholder="Enter ticker (e.g., AAPL)" maxlength="5">
+                        <button class="btn-add" id="btn-add-ticker">Add</button>
+                    </div>
+                </div>
+
+                <div class="watchlist-table-container">
+                    <table class="watchlist-table" id="watchlist-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Price</th>
+                                <th>Change</th>
+                                <th>IV Rank</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="watchlist-body">
+                            <tr class="empty-row">
+                                <td colspan="6">Add tickers to your watchlist to track them</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Trade Journal Tool -->
+            <section class="tool-panel" id="tool-journal">
+                <div class="tool-header">
+                    <h1>📓 Trade Journal</h1>
+                    <p>Track your trades and analyze your performance over time</p>
+                </div>
+
+                <div class="journal-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-trades">0</div>
+                        <div class="stat-label">Total Trades</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value positive" id="stat-win-rate">0%</div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-pnl">$0</div>
+                        <div class="stat-label">Total P/L</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-avg-win">$0</div>
+                        <div class="stat-label">Avg Win</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-avg-loss">$0</div>
+                        <div class="stat-label">Avg Loss</div>
+                    </div>
+                </div>
+
+                <div class="journal-controls">
+                    <button class="btn-primary" id="btn-new-trade">+ New Trade</button>
+                    <button class="btn-secondary" id="btn-export-journal">Export CSV</button>
+                </div>
+
+                <div class="journal-table-container">
+                    <table class="journal-table" id="journal-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Ticker</th>
+                                <th>Strategy</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>P/L</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="journal-body">
+                            <tr class="empty-row">
+                                <td colspan="7">No trades recorded yet. Click "New Trade" to add one.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Earnings Calendar Tool -->
+            <section class="tool-panel" id="tool-earnings">
+                <div class="tool-header">
+                    <h1>📅 Earnings Calendar</h1>
+                    <p>Upcoming earnings reports - crucial for options traders to avoid or target</p>
+                </div>
+
+                <div class="earnings-filters">
+                    <button class="filter-btn active" data-filter="this-week">This Week</button>
+                    <button class="filter-btn" data-filter="next-week">Next Week</button>
+                    <button class="filter-btn" data-filter="watchlist">My Watchlist</button>
+                </div>
+
+                <div class="earnings-grid" id="earnings-grid">
+                    <div class="loading-state">Loading earnings calendar...</div>
+                </div>
+            </section>
+
+            <!-- Learn Tool -->
+            <section class="tool-panel" id="tool-learn">
+                <div class="tool-header">
+                    <h1>📚 Options Education</h1>
+                    <p>Free resources to learn options trading from trusted sources</p>
+                </div>
+
+                <div class="learn-grid">
+                    <div class="learn-card">
+                        <div class="learn-icon">📈</div>
+                        <h3>Options Basics</h3>
+                        <p>What are calls and puts? Understanding the fundamentals of options contracts.</p>
+                        <div class="learn-topics">
+                            <span class="topic">Calls vs Puts</span>
+                            <span class="topic">Strike Price</span>
+                            <span class="topic">Expiration</span>
+                            <span class="topic">Premium</span>
+                        </div>
+                        <div class="learn-links">
+                            <a href="https://www.investopedia.com/terms/o/option.asp" target="_blank" rel="noopener" class="learn-link">
+                                <span>📖</span> Investopedia: Options Guide
+                            </a>
+                            <a href="https://www.cboe.com/learncenter/courses/introduction-to-options/" target="_blank" rel="noopener" class="learn-link">
+                                <span>🎓</span> CBOE: Options Course
+                            </a>
+                            <a href="https://www.schwab.com/learn/story/options-basics" target="_blank" rel="noopener" class="learn-link">
+                                <span>📚</span> Schwab: Options Basics
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="learn-card">
+                        <div class="learn-icon">🔤</div>
+                        <h3>The Greeks</h3>
+                        <p>Delta, Gamma, Theta, Vega - understand how options prices move.</p>
+                        <div class="learn-topics">
+                            <span class="topic">Delta</span>
+                            <span class="topic">Gamma</span>
+                            <span class="topic">Theta</span>
+                            <span class="topic">Vega</span>
+                        </div>
+                        <div class="learn-links">
+                            <a href="https://www.investopedia.com/trading/options-greeks/" target="_blank" rel="noopener" class="learn-link">
+                                <span>📖</span> Investopedia: Options Greeks
+                            </a>
+                            <a href="https://www.tastytrade.com/learn/options-greeks" target="_blank" rel="noopener" class="learn-link">
+                                <span>🎓</span> Tastytrade: Greeks Explained
+                            </a>
+                            <a href="https://www.optionseducation.org/en/learn-concepts/options-greeks" target="_blank" rel="noopener" class="learn-link">
+                                <span>📚</span> OIC: Understanding Greeks
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="learn-card">
+                        <div class="learn-icon">📊</div>
+                        <h3>Spread Strategies</h3>
+                        <p>Vertical spreads, iron condors, and other multi-leg strategies.</p>
+                        <div class="learn-topics">
+                            <span class="topic">Debit Spreads</span>
+                            <span class="topic">Credit Spreads</span>
+                            <span class="topic">Iron Condors</span>
+                            <span class="topic">Butterflies</span>
+                        </div>
+                        <div class="learn-links">
+                            <a href="https://www.investopedia.com/trading/options-spreads/" target="_blank" rel="noopener" class="learn-link">
+                                <span>📖</span> Investopedia: Options Spreads
+                            </a>
+                            <a href="https://www.tastytrade.com/learn/vertical-spreads" target="_blank" rel="noopener" class="learn-link">
+                                <span>🎓</span> Tastytrade: Vertical Spreads
+                            </a>
+                            <a href="https://www.optionseducation.org/en/strategies/iron-condor" target="_blank" rel="noopener" class="learn-link">
+                                <span>📚</span> OIC: Iron Condor Guide
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="learn-card">
+                        <div class="learn-icon">⚠️</div>
+                        <h3>Risk Management</h3>
+                        <p>Position sizing, stop losses, and protecting your capital.</p>
+                        <div class="learn-topics">
+                            <span class="topic">Position Sizing</span>
+                            <span class="topic">Stop Losses</span>
+                            <span class="topic">Portfolio Risk</span>
+                            <span class="topic">Hedging</span>
+                        </div>
+                        <div class="learn-links">
+                            <a href="https://www.investopedia.com/articles/trading/09/risk-management.asp" target="_blank" rel="noopener" class="learn-link">
+                                <span>📖</span> Investopedia: Risk Management
+                            </a>
+                            <a href="https://www.tastytrade.com/learn/position-sizing" target="_blank" rel="noopener" class="learn-link">
+                                <span>🎓</span> Tastytrade: Position Sizing
+                            </a>
+                            <a href="https://www.schwab.com/learn/story/options-risk-management" target="_blank" rel="noopener" class="learn-link">
+                                <span>📚</span> Schwab: Options Risk Management
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="learn-card">
+                        <div class="learn-icon">📉</div>
+                        <h3>IV & Volatility</h3>
+                        <p>Implied volatility, IV rank, and trading volatility.</p>
+                        <div class="learn-topics">
+                            <span class="topic">IV vs HV</span>
+                            <span class="topic">IV Rank</span>
+                            <span class="topic">IV Crush</span>
+                            <span class="topic">VIX</span>
+                        </div>
+                        <div class="learn-links">
+                            <a href="https://www.investopedia.com/terms/i/iv.asp" target="_blank" rel="noopener" class="learn-link">
+                                <span>📖</span> Investopedia: Implied Volatility
+                            </a>
+                            <a href="https://www.tastytrade.com/learn/implied-volatility" target="_blank" rel="noopener" class="learn-link">
+                                <span>🎓</span> Tastytrade: IV Explained
+                            </a>
+                            <a href="https://www.optionseducation.org/en/learn-concepts/volatility" target="_blank" rel="noopener" class="learn-link">
+                                <span>📚</span> OIC: Volatility Guide
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="learn-card">
+                        <div class="learn-icon">🎯</div>
+                        <h3>Entry & Exit</h3>
+                        <p>When to enter trades and when to take profits or cut losses.</p>
+                        <div class="learn-topics">
+                            <span class="topic">Entry Signals</span>
+                            <span class="topic">Take Profit</span>
+                            <span class="topic">Stop Loss</span>
+                            <span class="topic">Rolling</span>
+                        </div>
+                        <div class="learn-links">
+                            <a href="https://www.investopedia.com/articles/active-trading/090415/options-trading-strategies-beginners.asp" target="_blank" rel="noopener" class="learn-link">
+                                <span>📖</span> Investopedia: Options Strategies
+                            </a>
+                            <a href="https://www.tastytrade.com/learn/managing-positions" target="_blank" rel="noopener" class="learn-link">
+                                <span>🎓</span> Tastytrade: Managing Positions
+                            </a>
+                            <a href="https://www.schwab.com/learn/story/options-exit-strategies" target="_blank" rel="noopener" class="learn-link">
+                                <span>📚</span> Schwab: Exit Strategies
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Resources Section -->
+                <div class="learn-additional">
+                    <h2>📚 Additional Free Resources</h2>
+                    <div class="additional-resources">
+                        <div class="resource-category">
+                            <h3>🎓 Comprehensive Courses</h3>
+                            <ul>
+                                <li><a href="https://www.cboe.com/learncenter/" target="_blank" rel="noopener">CBOE Options Institute</a> - Free courses and webinars</li>
+                                <li><a href="https://www.optionseducation.org/" target="_blank" rel="noopener">Options Industry Council (OIC)</a> - Free educational resources</li>
+                                <li><a href="https://www.tastytrade.com/learn" target="_blank" rel="noopener">Tastytrade Learn</a> - Free trading education</li>
+                            </ul>
+                        </div>
+                        <div class="resource-category">
+                            <h3>📖 Educational Articles</h3>
+                            <ul>
+                                <li><a href="https://www.investopedia.com/options-4427725" target="_blank" rel="noopener">Investopedia Options Section</a> - Comprehensive guides</li>
+                                <li><a href="https://www.schwab.com/learn/topic/options" target="_blank" rel="noopener">Schwab Options Center</a> - Educational articles</li>
+                                <li><a href="https://www.fidelity.com/learning-center/trading-investing/options" target="_blank" rel="noopener">Fidelity Options Learning</a> - Free tutorials</li>
+                            </ul>
+                        </div>
+                        <div class="resource-category">
+                            <h3>🎥 Video Resources</h3>
+                            <ul>
+                                <li><a href="https://www.youtube.com/c/Tastytrade" target="_blank" rel="noopener">Tastytrade YouTube</a> - Free trading videos</li>
+                                <li><a href="https://www.youtube.com/c/OptionsPlay" target="_blank" rel="noopener">OptionsPlay YouTube</a> - Options education</li>
+                                <li><a href="https://www.investopedia.com/video/" target="_blank" rel="noopener">Investopedia Videos</a> - Educational videos</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>Paper trade first. Risk management > prediction accuracy.</span>
+        </footer>
+    </div>
+
+    <!-- New Trade Modal -->
+    <div class="modal" id="trade-modal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" id="trade-modal-close">×</button>
+            <h2>📝 Log New Trade</h2>
+            
+            <form id="trade-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ticker</label>
+                        <input type="text" id="trade-ticker" required maxlength="5" placeholder="AAPL">
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="trade-date" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Strategy</label>
+                    <select id="trade-strategy" required>
+                        <option value="">Select strategy...</option>
+                        <option value="Long Call">Long Call</option>
+                        <option value="Long Put">Long Put</option>
+                        <option value="Call Debit Spread">Call Debit Spread</option>
+                        <option value="Put Debit Spread">Put Debit Spread</option>
+                        <option value="Call Credit Spread">Call Credit Spread</option>
+                        <option value="Put Credit Spread">Put Credit Spread</option>
+                        <option value="Iron Condor">Iron Condor</option>
+                        <option value="Covered Call">Covered Call</option>
+                        <option value="Cash Secured Put">Cash Secured Put</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Entry Price</label>
+                        <input type="number" id="trade-entry" step="0.01" required placeholder="2.50">
+                    </div>
+                    <div class="form-group">
+                        <label>Exit Price (optional)</label>
+                        <input type="number" id="trade-exit" step="0.01" placeholder="3.75">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Contracts</label>
+                    <input type="number" id="trade-contracts" min="1" value="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="trade-notes" rows="3" placeholder="Why did you take this trade? What was the thesis?"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-trade">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script src="/static/js/tools.js"></script>
+</body>
+</html>
+

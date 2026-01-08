@@ -102,13 +102,20 @@
 
 .card-header-inline {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 8px;
     margin-bottom: 12px;
 }
 
-.card-header-inline h2 {
+.card-header-inline h2,
+.card-header-inline h3 {
     margin: 0;
+}
+
+.header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* Gauge */
@@ -183,6 +190,26 @@
     margin-top: 8px;
 }
 
+.card-timestamp-small {
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-timestamp-small .timestamp-icon {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.card-timestamp-small .timestamp-text {
+    flex: 1;
+}
+
 /* History Items */
 .history-items {
     display: grid;
@@ -236,6 +263,108 @@
     font-weight: 600;
 }
 
+/* Chart Section */
+.chart-section {
+    margin: 20px 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: visible;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chart-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chart-input {
+    width: 120px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.chart-input::placeholder {
+    text-transform: none;
+    color: var(--text-muted);
+}
+
+.chart-input:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+}
+
+.chart-select {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    max-width: 200px;
+}
+
+.chart-select:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+}
+
+.chart-select optgroup {
+    background: var(--bg-tertiary);
+    color: var(--accent-cyan);
+    font-weight: 600;
+}
+
+.chart-select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.chart-container {
+    height: 400px;
+    background: #131722;
+    position: relative;
+    z-index: 1;
+}
+
+.tradingview-widget-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* News Content Wrapper */
+.news-content-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 /* Two Column Layout */
 .two-column-layout {
     display: grid;
@@ -265,11 +394,16 @@
 
 .card-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 8px;
     padding: 14px 16px;
     background: var(--bg-tertiary);
-    border-bottom: 1px solid var(--border-color);
+}
+
+.header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .card-header h2 {
@@ -290,6 +424,26 @@
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+.card-timestamp-small {
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-timestamp-small .timestamp-icon {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.card-timestamp-small .timestamp-text {
+    flex: 1;
 }
 
 .card-meta {
@@ -812,5 +966,507 @@
     
     .index-item {
         gap: 8px;
+    }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+    .news-main-scroll {
+        padding: 0;
+    }
+    
+    /* Chart section mobile */
+    .chart-section {
+        margin: 12px;
+        border-radius: var(--radius);
+    }
+    
+    .chart-header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
+    
+    .chart-header h2 {
+        font-size: 13px;
+    }
+    
+    .chart-controls {
+        width: 100%;
+    }
+    
+    .chart-input {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .chart-select {
+        flex: 2;
+        min-width: 0;
+        padding: 10px 12px;
+        max-width: none;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+    
+    /* Header adjustments for news page */
+    .header {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .logo {
+        order: 1;
+        flex: 1;
+    }
+    
+    .logo-text {
+        font-size: 12px;
+        letter-spacing: 0.5px;
+    }
+    
+    .logo-icon {
+        font-size: 20px;
+    }
+    
+    .nav-tabs {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .nav-tab {
+        flex: 1;
+        text-align: center;
+        padding: 10px 12px;
+    }
+    
+    .header-actions {
+        order: 2;
+    }
+    
+    .btn-refresh {
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+    
+    .btn-refresh span:not(.refresh-icon) {
+        display: none;
+    }
+    
+    /* Market bar mobile */
+    .market-bar {
+        padding: 10px 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .market-bar-inner {
+        gap: 12px;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        min-width: max-content;
+    }
+    
+    .index-item {
+        flex-direction: column;
+        gap: 2px;
+        min-width: 70px;
+        text-align: center;
+    }
+    
+    .index-name {
+        font-size: 9px;
+    }
+    
+    .index-price {
+        font-size: 12px;
+    }
+    
+    .index-change {
+        font-size: 10px;
+        padding: 1px 6px;
+    }
+    
+    /* Sentiment section mobile */
+    .sentiment-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .sentiment-main-card,
+    .sentiment-history-card,
+    .market-summary-card {
+        padding: 12px;
+    }
+    
+    .sentiment-main-card h2,
+    .sentiment-history-card h3,
+    .market-summary-card h3 {
+        font-size: 12px;
+    }
+    
+    .gauge-visual {
+        width: 120px;
+        height: 60px;
+    }
+    
+    .gauge-arc {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .gauge-arc::after {
+        top: 15px;
+        left: 15px;
+        width: 90px;
+        height: 90px;
+    }
+    
+    .gauge-needle {
+        height: 45px;
+    }
+    
+    .gauge-value {
+        font-size: 28px;
+    }
+    
+    .gauge-label {
+        font-size: 12px;
+    }
+    
+    .history-items {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    .history-item {
+        padding: 6px 10px;
+    }
+    
+    .history-label {
+        font-size: 10px;
+    }
+    
+    .history-value {
+        font-size: 12px;
+    }
+    
+    .summary-text {
+        font-size: 12px;
+    }
+    
+    /* Two column layout mobile */
+    .two-column-layout {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .left-column,
+    .right-column {
+        gap: 12px;
+    }
+    
+    .right-column {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    /* Card sections mobile */
+    .card-section {
+        border-radius: var(--radius);
+    }
+    
+    .card-section.compact {
+        max-height: 200px;
+    }
+    
+    .card-header {
+        padding: 10px 12px;
+    }
+    
+    .card-header h2 {
+        font-size: 12px;
+    }
+    
+    .card-header h3 {
+        font-size: 11px;
+    }
+    
+    .card-timestamp {
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+    
+    .card-timestamp .timestamp-icon {
+        font-size: 12px;
+    }
+    
+    .card-meta {
+        padding: 6px 12px;
+        font-size: 10px;
+    }
+    
+    /* Flow filters mobile */
+    .flow-filters {
+        padding: 8px 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+    }
+    
+    .filter-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+        white-space: nowrap;
+    }
+    
+    /* Flow items mobile */
+    .scrollable-list {
+        max-height: 350px;
+        padding: 10px;
+    }
+    
+    .flow-item {
+        grid-template-columns: 70px 1fr auto;
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    .flow-ticker {
+        font-size: 14px;
+    }
+    
+    .flow-sentiment-mini .flow-sentiment-label {
+        font-size: 8px;
+    }
+    
+    .flow-bar-labels {
+        font-size: 9px;
+    }
+    
+    .flow-flag {
+        font-size: 7px;
+        padding: 1px 4px;
+    }
+    
+    .flow-total {
+        min-width: 70px;
+    }
+    
+    .flow-premium {
+        font-size: 12px;
+    }
+    
+    .flow-detail {
+        font-size: 8px;
+    }
+    
+    .flow-ratio {
+        font-size: 9px;
+    }
+    
+    /* News items mobile */
+    .news-item {
+        padding: 10px;
+    }
+    
+    .news-ticker {
+        font-size: 9px;
+    }
+    
+    .sentiment-badge {
+        font-size: 8px;
+    }
+    
+    .news-category {
+        font-size: 7px;
+    }
+    
+    .news-title {
+        font-size: 11px;
+    }
+    
+    .news-summary {
+        font-size: 10px;
+    }
+    
+    .news-footer {
+        font-size: 9px;
+    }
+    
+    /* Sidebar lists mobile */
+    .movers-list,
+    .active-list,
+    .sector-list,
+    .events-list {
+        padding: 6px;
+        max-height: 150px;
+    }
+    
+    .mover-item,
+    .active-item,
+    .sector-item,
+    .event-item {
+        padding: 6px 8px;
+    }
+    
+    .mover-ticker,
+    .active-ticker,
+    .sector-name {
+        font-size: 10px;
+    }
+    
+    .mover-change,
+    .sector-change {
+        font-size: 10px;
+    }
+    
+    .active-volume {
+        font-size: 9px;
+    }
+    
+    .event-date {
+        font-size: 9px;
+    }
+    
+    .event-name {
+        font-size: 10px;
+    }
+    
+    /* Info panel mobile */
+    .info-panel {
+        margin: 8px;
+    }
+    
+    .info-panel-header {
+        padding: 8px 10px;
+    }
+    
+    .info-panel-header h4 {
+        font-size: 11px;
+    }
+    
+    .info-panel-content {
+        padding: 10px;
+        font-size: 10px;
+    }
+    
+    /* Buttons mobile */
+    .btn-sm {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .btn-info {
+        width: 28px;
+        height: 28px;
+        font-size: 11px;
+    }
+    
+    /* Footer mobile */
+    .footer {
+        padding: 10px 12px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .market-bar-inner {
+        gap: 10px;
+    }
+    
+    .index-item {
+        min-width: 60px;
+    }
+    
+    .index-name {
+        font-size: 8px;
+    }
+    
+    .index-price {
+        font-size: 11px;
+    }
+    
+    .index-change {
+        font-size: 9px;
+    }
+    
+    .right-column {
+        grid-template-columns: 1fr;
+    }
+    
+    .flow-item {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .flow-ticker-section {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .flow-total {
+        text-align: left;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+    
+    .gauge-visual {
+        width: 100px;
+        height: 50px;
+    }
+    
+    .gauge-arc {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .gauge-arc::after {
+        top: 12px;
+        left: 12px;
+        width: 76px;
+        height: 76px;
+    }
+    
+    .gauge-needle {
+        height: 38px;
+    }
+    
+    .gauge-value {
+        font-size: 24px;
+    }
+    
+    .history-items {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .filter-btn {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-refresh, .btn-sm, .btn-info {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .flow-item, .news-item, .mover-item, .sector-item, .event-item {
+        min-height: 48px;
+    }
+    
+    .nav-tab {
+        min-height: 44px;
     }
 }

@@ -2,11 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Options Edge Scanner - Find high-probability options trades with AI-powered market analysis">
+    <meta name="theme-color" content="#0a0e14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Options Edge Scanner</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="apple-touch-icon" href="/static/favicon.svg">
+    <!-- Preconnect for faster font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Critical CSS for above-the-fold content -->
+    <style>
+        body { background: #0a0e14; color: #e6edf3; }
+        .app { display: flex; flex-direction: column; min-height: 100vh; }
+    </style>
 </head>
 <body>
     <div class="app">
@@ -19,6 +32,8 @@
             <nav class="nav-tabs">
                 <a href="/" class="nav-tab active">Scanner</a>
                 <a href="/news" class="nav-tab">News & Flow</a>
+                <a href="/market" class="nav-tab">Current Market</a>
+                <a href="/tools" class="nav-tab">Tools</a>
             </nav>
             <div class="header-actions">
                 <button class="btn-help" id="btn-help" title="How to Trade">
@@ -86,8 +101,13 @@
                 <!-- Results Table - Scrollable -->
                 <div class="results-table-scroll" id="results-container">
                     <div class="empty-state" id="empty-state">
-                        <div class="empty-icon">◇</div>
-                        <p>Select a strategy and run a scan to find trade candidates</p>
+                        <div class="empty-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </div>
+                        <p>Select a strategy and run a scan to discover high-probability trade setups</p>
                     </div>
                     <table class="results-table" id="results-table" style="display: none;">
                         <thead>
