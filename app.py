@@ -31,7 +31,13 @@ from config import SP100_TICKERS
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
 
 # CORS configuration - allow Vercel frontend
-CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*').split(',')
+CORS_ORIGINS_ENV = os.getenv('CORS_ORIGINS', '*')
+if CORS_ORIGINS_ENV == '*':
+    CORS_ORIGINS = '*'  # Allow all origins
+else:
+    # Split by comma and strip whitespace
+    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_ENV.split(',') if origin.strip()]
+
 CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
 
 # Global state for scan progress
