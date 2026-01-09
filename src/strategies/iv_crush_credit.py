@@ -47,7 +47,7 @@ class IVCrushCredit(BaseStrategy):
     # Filter thresholds
     FILTERS = {
         # Volatility (KEY for this strategy)
-        'iv_rank_min': 55,           # IV must be elevated
+        'iv_rank_min': 40,           # IV must be elevated (lowered from 55 to capture more opportunities)
         'iv_rank_ideal': 70,         # Sweet spot
         
         # Trend - prefer range-bound or slight counter-trend
@@ -101,7 +101,7 @@ class IVCrushCredit(BaseStrategy):
             return StrategyResult(ticker, False, None, 0, reasons, '')
         
         if iv_rank < self.FILTERS['iv_rank_min']:
-            reasons.append(f"IV Rank {iv_rank:.0f} < {self.FILTERS['iv_rank_min']} (need elevated IV)")
+            reasons.append(f"IV Rank {iv_rank:.0f} < {self.FILTERS['iv_rank_min']} (need elevated IV, current market has low IV)")
             return StrategyResult(ticker, False, None, 0, reasons, '')
         
         reasons.append(f"IV Rank: {iv_rank:.0f} (elevated - good for premium selling)")
@@ -125,16 +125,16 @@ class IVCrushCredit(BaseStrategy):
                 pass
         
         # TREND CHECK - prefer non-trending or slight mean reversion
-        if abs(return_20d) > self.FILTERS['max_return_20d']:
+        if return_20d is not None and abs(return_20d) > self.FILTERS['max_return_20d']:
             reasons.append(f"20D return {return_20d:.1f}% too extreme (prefer range-bound)")
             return StrategyResult(ticker, False, None, 20, reasons, '')
         
         # Determine direction (sell against recent move for mean reversion)
-        if return_20d > 2:
+        if return_20d is not None and return_20d > 2:
             direction = 'BEARISH'  # Stock went up, sell call credit spread
             trade_type = 'CALL_CREDIT'
             reasons.append(f"Stock up {return_20d:.1f}% - sell call spread (mean reversion)")
-        elif return_20d < -2:
+        elif return_20d is not None and return_20d < -2:
             direction = 'BULLISH'  # Stock went down, sell put credit spread
             trade_type = 'PUT_CREDIT'
             reasons.append(f"Stock down {return_20d:.1f}% - sell put spread (mean reversion)")
@@ -149,14 +149,14 @@ class IVCrushCredit(BaseStrategy):
                 trade_type = 'PUT_CREDIT'
                 reasons.append(f"RSI {rsi:.0f} neutral/low - sell put spread")
         
-        # Check options available
+        # Check options available (warn but don't fail)
         if data.get('options') is None:
-            reasons.append("No options data")
-            return StrategyResult(ticker, False, direction, 40, reasons, '')
+            reasons.append("No options data (will need to fetch before trading)")
+            # Don't fail on options - just note it
         
         # Calculate signal strength
         strength = 50
-        strength += (iv_rank - 55) * 0.5  # Higher IV = stronger signal
+        strength += (iv_rank - 40) * 0.5  # Higher IV = stronger signal (adjusted threshold from 55 to 40)
         if post_earnings:
             strength += 15
         if 30 <= rsi <= 70:  # Not extreme RSI

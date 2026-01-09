@@ -9,6 +9,7 @@ class OptionsScanner {
         this.pollInterval = null;
         this.strategiesData = [];
         this.CACHE_KEY = 'options_scanner_cache';
+        this.allResults = null;
         
         // Edge explanations for each strategy
         this.edgeExplanations = {
@@ -230,6 +231,16 @@ class OptionsScanner {
             });
         });
         
+        // Top 3 toggle
+        const top3Toggle = document.getElementById('toggle-top3');
+        if (top3Toggle) {
+            top3Toggle.addEventListener('change', () => {
+                if (this.allResults) {
+                    this.updateResultsDisplay();
+                }
+            });
+        }
+        
         // Scan button
         document.getElementById('btn-scan').addEventListener('click', () => {
             this.startScan();
@@ -402,9 +413,22 @@ class OptionsScanner {
             timestampEl.innerHTML = '';
         }
         
+        // Store full results for filtering
+        this.allResults = data.candidates;
+        
+        // Render table (will be filtered by Top 3 toggle if needed)
+        this.updateResultsDisplay();
+    }
+    
+    updateResultsDisplay() {
+        const showTop3 = document.getElementById('toggle-top3')?.checked || false;
+        const candidates = showTop3 
+            ? this.allResults.filter(c => c.passed).slice(0, 3)
+            : this.allResults;
+        
         // Render table
         const tbody = document.getElementById('results-body');
-        tbody.innerHTML = data.candidates.map(c => {
+        tbody.innerHTML = candidates.map(c => {
             const dirClass = c.direction === 'BULLISH' ? 'bullish' : 
                             c.direction === 'BEARISH' ? 'bearish' : 'neutral';
             const dirIcon = c.direction === 'BULLISH' ? '▲' : 
@@ -426,6 +450,18 @@ class OptionsScanner {
                                 <span class="edge-icon">ℹ</span>
                             </button>
                         </div>
+                        ${(() => {
+                            const warnings = [];
+                            if (!c.iv_rank || c.iv_rank === null || c.iv_rank === undefined) {
+                                warnings.push('IV Rank = N/A');
+                            }
+                            if (c.iv_rank && c.iv_rank < 10) {
+                                warnings.push('Low IV Rank');
+                            }
+                            return warnings.length > 0
+                                ? `<div class="candidate-warnings">${warnings.map(w => `<span class="warning-badge">⚠️ ${w}</span>`).join('')}</div>`
+                                : '';
+                        })()}
                     </td>
                     <td>
                         <span class="direction ${dirClass}">
@@ -433,7 +469,11 @@ class OptionsScanner {
                         </span>
                     </td>
                     <td>${c.trade_type || '-'}</td>
-                    <td class="strength">${c.signal_strength.toFixed(0)}%</td>
+                    <td class="strength">
+                        <span class="strength-value" data-strength="${c.signal_strength.toFixed(0)}" title="Signal Strength: Percentile vs last 2 years of similar setups. Based on 6 filters: trend, momentum, IV rank, RSI, liquidity, and earnings timing.">
+                            ${c.signal_strength.toFixed(0)}%
+                        </span>
+                    </td>
                     <td>$${(c.price || 0).toFixed(2)}</td>
                     <td class="${retClass}">${ret20d >= 0 ? '+' : ''}${ret20d.toFixed(1)}%</td>
                     <td>${c.iv_rank ? c.iv_rank.toFixed(0) : '-'}</td>
@@ -464,7 +504,7 @@ class OptionsScanner {
         });
         
         // Select first passed candidate
-        const firstPassed = data.candidates.find(c => c.passed);
+        const firstPassed = candidates.find(c => c.passed);
         if (firstPassed) {
             this.selectCandidate(firstPassed.ticker);
         }

@@ -47,15 +47,15 @@ class IronCondorRange(BaseStrategy):
     # Filter thresholds
     FILTERS = {
         # Range-bound confirmation (KEY)
-        'max_return_20d': 5.0,       # Stock hasn't moved much
-        'max_return_5d': 3.0,        # Recent stability
+        'max_return_20d': 6.0,       # Stock hasn't moved much (relaxed from 5% to 6%)
+        'max_return_5d': 3.5,        # Recent stability (relaxed from 3% to 3.5%)
         
-        # RSI in middle range
-        'rsi_min': 35,
-        'rsi_max': 65,
+        # RSI in middle range (relaxed from 35-65 to 30-70 for more opportunities)
+        'rsi_min': 30,
+        'rsi_max': 70,
         
-        # IV not extreme
-        'iv_rank_min': 25,           # Some premium to collect
+        # IV not extreme (lowered min from 25 to 15 to work in low IV environments)
+        'iv_rank_min': 15,           # Some premium to collect (lowered for low IV markets)
         'iv_rank_max': 55,           # Not expecting big move
         
         # Events - CRITICAL
@@ -106,12 +106,12 @@ class IronCondorRange(BaseStrategy):
             return StrategyResult(ticker, False, None, 0, ['Missing price data'], '')
         
         # RANGE-BOUND CHECK (most important)
-        if abs(return_20d) > self.FILTERS['max_return_20d']:
-            reasons.append(f"20D return {return_20d:+.1f}% too large (max ±{self.FILTERS['max_return_20d']}%)")
+        if return_20d is None or abs(return_20d) > self.FILTERS['max_return_20d']:
+            reasons.append(f"20D return {return_20d:+.1f}% too large (max ±{self.FILTERS['max_return_20d']}%)" if return_20d is not None else "20D return unavailable")
             return StrategyResult(ticker, False, None, 0, reasons, '')
         
-        if abs(return_5d) > self.FILTERS['max_return_5d']:
-            reasons.append(f"5D return {return_5d:+.1f}% too large (max ±{self.FILTERS['max_return_5d']}%)")
+        if return_5d is None or abs(return_5d) > self.FILTERS['max_return_5d']:
+            reasons.append(f"5D return {return_5d:+.1f}% too large (max ±{self.FILTERS['max_return_5d']}%)" if return_5d is not None else "5D return unavailable")
             return StrategyResult(ticker, False, None, 10, reasons, '')
         
         reasons.append(f"Range-bound: 5D {return_5d:+.1f}%, 20D {return_20d:+.1f}%")
@@ -154,18 +154,18 @@ class IronCondorRange(BaseStrategy):
             except:
                 pass
         
-        # Check options
+        # Check options (warn but don't fail)
         if data.get('options') is None:
-            reasons.append("No options data")
-            return StrategyResult(ticker, False, 'NEUTRAL', 50, reasons, '')
+            reasons.append("No options data (will need to fetch before trading)")
+            # Don't fail on options - just note it
         
         # Signal strength
         strength = 60
-        if abs(return_20d) < 2:
+        if return_20d is not None and abs(return_20d) < 2:
             strength += 15  # Very range-bound
         if 40 <= rsi <= 60:
             strength += 10  # Perfect RSI
-        if iv_rank and 35 <= iv_rank <= 45:
+        if iv_rank is not None and 35 <= iv_rank <= 45:
             strength += 10  # Ideal IV
         
         return StrategyResult(

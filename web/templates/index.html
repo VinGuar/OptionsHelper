@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="description" content="Options Edge Scanner - Find high-probability options trades with AI-powered market analysis">
     <meta name="theme-color" content="#0a0e14">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Options Edge Scanner</title>
@@ -72,6 +73,11 @@
                                 <span class="radio-custom"></span>
                                 <span>Full S&P 100</span>
                             </label>
+                            <label class="radio-label">
+                                <input type="radio" name="scan-type" value="extended">
+                                <span class="radio-custom"></span>
+                                <span>Extended (Full S&P 500)</span>
+                            </label>
                         </div>
                     </div>
                     
@@ -85,7 +91,16 @@
             <!-- Center Panel: Results -->
             <section class="panel panel-results">
                 <div class="results-header">
-                    <h2 class="panel-title">SCAN RESULTS</h2>
+                    <div class="results-header-top">
+                        <h2 class="panel-title">SCAN RESULTS</h2>
+                        <div class="results-controls">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="toggle-top3" class="toggle-checkbox">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-text">Top 3</span>
+                            </label>
+                        </div>
+                    </div>
                     <div class="results-meta" id="results-meta"></div>
                     <div class="results-timestamp" id="results-timestamp"></div>
                 </div>

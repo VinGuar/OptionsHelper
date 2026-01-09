@@ -59,7 +59,7 @@ class BreakoutMomentum(BaseStrategy):
         
         # Not too extended
         'max_above_ma20_pct': 10.0,  # Not more than 10% above MA20
-        'rsi_max': 80,               # Not extremely overbought
+        'rsi_max': 85,               # Allow up to 85 for strong momentum breakouts (raised from 80)
         
         # Volatility
         'iv_rank_min': 20,
@@ -115,16 +115,17 @@ class BreakoutMomentum(BaseStrategy):
         reasons.append(f"Uptrend confirmed: ${price:.2f} > MA20 > MA50")
         
         # MOMENTUM CHECK
-        if return_5d < self.FILTERS['min_return_5d']:
-            reasons.append(f"5D return +{return_5d:.1f}% < {self.FILTERS['min_return_5d']}% (weak momentum)")
+        if return_5d is None or return_5d < self.FILTERS['min_return_5d']:
+            reasons.append(f"5D return {return_5d:.1f}% < {self.FILTERS['min_return_5d']}% (weak momentum)" if return_5d is not None else "5D return unavailable")
             return StrategyResult(ticker, False, None, 20, reasons, '')
         
         reasons.append(f"Strong 5D momentum: +{return_5d:.1f}%")
         
         # Check if near highs (proxy for breakout)
         # We use 20D return as proxy - strong 20D move suggests breakout
-        if return_20d < 5:
-            reasons.append(f"20D return +{return_20d:.1f}% - not a strong breakout")
+        # Lowered threshold from 5% to 2.5% since we already check 5D momentum
+        if return_20d is None or return_20d < 2.5:
+            reasons.append(f"20D return {return_20d:.1f}% - not a strong breakout (need >= 2.5%)" if return_20d is not None else "20D return unavailable")
             return StrategyResult(ticker, False, None, 30, reasons, '')
         
         reasons.append(f"20D momentum: +{return_20d:.1f}% (breakout territory)")
@@ -135,9 +136,13 @@ class BreakoutMomentum(BaseStrategy):
             reasons.append(f"Extended {pct_above_ma20:.1f}% above MA20 (> {self.FILTERS['max_above_ma20_pct']}%)")
             return StrategyResult(ticker, False, 'BULLISH', 35, reasons, '')
         
-        # RSI CHECK
-        if rsi > self.FILTERS['rsi_max']:
-            reasons.append(f"RSI {rsi:.0f} > {self.FILTERS['rsi_max']} (overbought)")
+        # RSI CHECK - more lenient if momentum is very strong
+        rsi_max_allowed = self.FILTERS['rsi_max']
+        if return_5d is not None and return_5d >= 3.5 and return_20d is not None and return_20d >= 2.5:
+            rsi_max_allowed = 90  # Allow higher RSI for very strong momentum breakouts
+        
+        if rsi > rsi_max_allowed:
+            reasons.append(f"RSI {rsi:.0f} > {rsi_max_allowed} (overbought)")
             return StrategyResult(ticker, False, 'BULLISH', 40, reasons, '')
         
         reasons.append(f"RSI {rsi:.0f} (not overbought)")
@@ -164,16 +169,18 @@ class BreakoutMomentum(BaseStrategy):
             except:
                 pass
         
-        # Check options
+        # Check options (warn but don't fail)
         if data.get('options') is None:
-            reasons.append("No options data")
-            return StrategyResult(ticker, False, 'BULLISH', 50, reasons, '')
+            reasons.append("No options data (will need to fetch before trading)")
+            # Don't fail on options - just note it
         
         # Signal strength
         strength = 55
-        strength += min(return_5d - 3, 10) * 2
-        strength += min(return_20d - 5, 15)
-        if iv_rank and 30 <= iv_rank <= 50:
+        if return_5d is not None:
+            strength += min(return_5d - 3, 10) * 2
+        if return_20d is not None:
+            strength += min(return_20d - 5, 15)
+        if iv_rank is not None and 30 <= iv_rank <= 50:
             strength += 10
         
         return StrategyResult(

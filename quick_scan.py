@@ -86,8 +86,10 @@ def main():
     fetcher = MarketDataFetcher(QUICK_TICKERS)
     
     print("Fetching market data...")
+    # All strategies need options data to evaluate properly
     market_data = fetcher.scan_all(
-        progress_callback=lambda t, i, n: print(f"  [{i}/{n}] {t}        ", end="\r")
+        progress_callback=lambda t, i, n: print(f"  [{i}/{n}] {t}        ", end="\r"),
+        fetch_options=True
     )
     print(f"\n[OK] Got data for {len(market_data)} tickers\n")
     

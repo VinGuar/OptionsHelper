@@ -63,17 +63,50 @@ def scan_with_strategy(strategy: BaseStrategy, tickers: list[str]) -> tuple[dict
         bar = "#" * int(pct / 5) + "-" * (20 - int(pct / 5))
         print(f"  [{bar}] {current}/{total} {ticker}        ", end="\r")
     
-    market_data = fetcher.scan_all(progress_callback=update_progress)
+    # All strategies need options data to evaluate properly
+    market_data = fetcher.scan_all(progress_callback=update_progress, fetch_options=True)
     
     print(f"\n\n[OK] Fetched data for {len(market_data)} tickers\n")
     
     # Apply strategy filters
     print(f"[*] Applying {strategy.NAME} filters...")
     
+    # Debug: Show sample data structure
+    if market_data:
+        sample_ticker = list(market_data.keys())[0]
+        sample_data = market_data[sample_ticker]
+        print(f"\n[DEBUG] Sample data for {sample_ticker}:")
+        print(f"  Keys: {list(sample_data.keys())}")
+        for key, value in sample_data.items():
+            if key != 'options':  # Skip options (too large)
+                print(f"  {key}: {value}")
+        print()
+    
     results = []
+    failure_reasons = {}  # Track why stocks fail
+    
     for ticker, data in market_data.items():
         result = strategy.check_entry(ticker, data)
         results.append(result)
+        
+        # Track failure reasons
+        if not result.passed:
+            primary_reason = result.reasons[0] if result.reasons else "Unknown"
+            if primary_reason not in failure_reasons:
+                failure_reasons[primary_reason] = []
+            failure_reasons[primary_reason].append(ticker)
+    
+    # Show failure summary
+    if not any(r.passed for r in results):
+        print(f"\n[DEBUG] Failure Analysis:")
+        print(f"  Total tickers checked: {len(results)}")
+        print(f"  Top failure reasons:")
+        sorted_reasons = sorted(failure_reasons.items(), key=lambda x: len(x[1]), reverse=True)
+        for reason, tickers in sorted_reasons[:10]:
+            print(f"    {reason}: {len(tickers)} tickers")
+            if len(tickers) <= 5:
+                print(f"      Examples: {', '.join(tickers)}")
+        print()
     
     # Sort by signal strength
     results.sort(key=lambda x: (x.passed, x.signal_strength), reverse=True)

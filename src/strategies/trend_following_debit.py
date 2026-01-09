@@ -49,7 +49,7 @@ class TrendFollowingDebit(BaseStrategy):
         # Momentum confirmation
         'rsi_bull_min': 50,          # RSI > 50 for bullish
         'rsi_bull_max': 75,          # Not overbought
-        'rsi_bear_min': 25,          # Not oversold
+        'rsi_bear_min': 20,          # Allow more oversold for bearish (relaxed from 25)
         'rsi_bear_max': 50,          # RSI < 50 for bearish
         
         # Events
@@ -99,7 +99,7 @@ class TrendFollowingDebit(BaseStrategy):
         
         # BULLISH CHECK
         if (price > ma20 > ma50 and 
-            return_20d >= self.FILTERS['min_return_20d']):
+            return_20d is not None and return_20d >= self.FILTERS['min_return_20d']):
             
             if self.FILTERS['rsi_bull_min'] <= rsi <= self.FILTERS['rsi_bull_max']:
                 direction = 'BULLISH'
@@ -111,7 +111,7 @@ class TrendFollowingDebit(BaseStrategy):
         
         # BEARISH CHECK
         elif (price < ma20 < ma50 and 
-              return_20d <= -self.FILTERS['min_return_20d']):
+              return_20d is not None and return_20d <= -self.FILTERS['min_return_20d']):
             
             if self.FILTERS['rsi_bear_min'] <= rsi <= self.FILTERS['rsi_bear_max']:
                 direction = 'BEARISH'
@@ -122,7 +122,7 @@ class TrendFollowingDebit(BaseStrategy):
                 reasons.append(f"RSI {rsi:.0f} outside bearish range ({self.FILTERS['rsi_bear_min']}-{self.FILTERS['rsi_bear_max']})")
         else:
             reasons.append(f"No clear trend: Price ${price:.2f}, MA20 ${ma20:.2f}, MA50 ${ma50:.2f}")
-            reasons.append(f"20D return: {return_20d:.1f}% (need ±{self.FILTERS['min_return_20d']}%)")
+            reasons.append(f"20D return: {return_20d:.1f}% (need ±{self.FILTERS['min_return_20d']}%)" if return_20d is not None else "20D return unavailable")
             return StrategyResult(ticker, False, None, 0, reasons, '')
         
         if direction is None:
@@ -150,16 +150,17 @@ class TrendFollowingDebit(BaseStrategy):
             except:
                 pass
         
-        # LIQUIDITY CHECK (done in main scanner, but note it)
+        # LIQUIDITY CHECK (warn but don't fail)
         options = data.get('options')
         if options is None:
-            reasons.append("No options data")
-            return StrategyResult(ticker, False, direction, 50, reasons, '')
+            reasons.append("No options data (will need to fetch before trading)")
+            # Don't fail on options - just note it
         
         # Calculate signal strength (0-100)
         strength = 60
-        strength += min(abs(return_20d) - 3, 10) * 2  # Bonus for stronger moves
-        if iv_rank and 25 <= iv_rank <= 45:
+        if return_20d is not None:
+            strength += min(abs(return_20d) - 3, 10) * 2  # Bonus for stronger moves
+        if iv_rank is not None and 25 <= iv_rank <= 45:
             strength += 10  # Ideal IV range
         
         trade_type = 'CALL_DEBIT' if direction == 'BULLISH' else 'PUT_DEBIT'

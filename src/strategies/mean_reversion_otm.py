@@ -50,7 +50,7 @@ class MeanReversionOTM(BaseStrategy):
         'rsi_overbought': 75,        # Above this = overbought
         
         # Short-term move magnitude
-        'min_return_5d': 5.0,        # At least 5% move in 5 days
+        'min_return_5d': 4.0,        # At least 4% move in 5 days (relaxed from 5%)
         
         # Don't fight strong trends
         'max_return_20d': 15.0,      # If 20D move is huge, trend may continue
@@ -89,15 +89,28 @@ class MeanReversionOTM(BaseStrategy):
         
         price = data.get('price')
         ma20 = data.get('ma20')
-        return_5d = data.get('return_5d', 0)
-        return_20d = data.get('return_20d', 0)
+        return_5d = data.get('return_5d')
+        return_20d = data.get('return_20d')
         iv_rank = data.get('iv_rank')
         rsi = data.get('rsi')
         earnings = data.get('earnings_date')
+        options = data.get('options')
+        
+        # Debug logging for first few tickers
+        import os
+        debug_mode = os.getenv('DEBUG_STRATEGY', '').lower() == 'true'
+        if debug_mode and ticker in ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA']:
+            print(f"\n[DEBUG {ticker}] Data received:")
+            print(f"  price: {price}, ma20: {ma20}")
+            print(f"  return_5d: {return_5d}, return_20d: {return_20d}")
+            print(f"  rsi: {rsi}, iv_rank: {iv_rank}")
+            print(f"  has_options: {options is not None}")
         
         # RSI is the KEY signal
         if rsi is None:
             reasons.append("RSI unavailable")
+            if debug_mode:
+                print(f"  [FAIL] RSI is None")
             return StrategyResult(ticker, False, None, 0, reasons, '')
         
         direction = None
@@ -107,11 +120,17 @@ class MeanReversionOTM(BaseStrategy):
             direction = 'BULLISH'
             reasons.append(f"RSI {rsi:.0f} OVERSOLD (< {self.FILTERS['rsi_oversold']}) - reversal setup")
             
+            # More lenient threshold for very extreme RSI (> 80 or < 20)
+            threshold = self.FILTERS['min_return_5d'] * 0.75 if rsi > 80 or rsi < 20 else self.FILTERS['min_return_5d']
+            
             # Confirm with price action
-            if return_5d and return_5d < -self.FILTERS['min_return_5d']:
+            if return_5d is not None and return_5d <= -threshold:
                 reasons.append(f"5D return: {return_5d:.1f}% (sharp drop)")
             else:
-                reasons.append(f"5D return {return_5d:.1f}% not extreme enough")
+                reason_msg = f"5D return {return_5d:.1f}% not extreme enough (need <= -{threshold:.1f}%)" if return_5d is not None else "5D return unavailable"
+                reasons.append(reason_msg)
+                if debug_mode:
+                    print(f"  [FAIL] {reason_msg}")
                 return StrategyResult(ticker, False, None, 20, reasons, '')
         
         # OVERBOUGHT - bearish reversal
@@ -119,18 +138,26 @@ class MeanReversionOTM(BaseStrategy):
             direction = 'BEARISH'
             reasons.append(f"RSI {rsi:.0f} OVERBOUGHT (> {self.FILTERS['rsi_overbought']}) - reversal setup")
             
-            if return_5d and return_5d > self.FILTERS['min_return_5d']:
+            # More lenient threshold for very extreme RSI (> 80 or < 20)
+            threshold = self.FILTERS['min_return_5d'] * 0.75 if rsi > 80 or rsi < 20 else self.FILTERS['min_return_5d']
+            
+            if return_5d is not None and return_5d >= threshold:
                 reasons.append(f"5D return: +{return_5d:.1f}% (sharp rally)")
             else:
-                reasons.append(f"5D return +{return_5d:.1f}% not extreme enough")
+                reason_msg = f"5D return {return_5d:.1f}% not extreme enough (need >= {threshold:.1f}%)" if return_5d is not None else "5D return unavailable"
+                reasons.append(reason_msg)
+                if debug_mode:
+                    print(f"  [FAIL] {reason_msg}")
                 return StrategyResult(ticker, False, None, 20, reasons, '')
         
         else:
             reasons.append(f"RSI {rsi:.0f} not extreme (need <{self.FILTERS['rsi_oversold']} or >{self.FILTERS['rsi_overbought']})")
+            if debug_mode:
+                print(f"  [FAIL] RSI {rsi:.0f} not in extreme range")
             return StrategyResult(ticker, False, None, 0, reasons, '')
         
         # Check 20D move isn't too extreme (fighting a mega-trend)
-        if abs(return_20d) > self.FILTERS['max_return_20d']:
+        if return_20d is not None and abs(return_20d) > self.FILTERS['max_return_20d']:
             reasons.append(f"20D return {return_20d:.1f}% too extreme - may be trend, not reversal")
             return StrategyResult(ticker, False, direction, 30, reasons, '')
         
@@ -154,18 +181,19 @@ class MeanReversionOTM(BaseStrategy):
             except:
                 pass
         
-        # Check options available
-        if data.get('options') is None:
-            reasons.append("No options data")
-            return StrategyResult(ticker, False, direction, 50, reasons, '')
+        # Check options available (warn but don't fail - options may not be fetched yet)
+        if options is None:
+            reasons.append("No options data (will need to fetch before trading)")
+            # Don't fail on options - just note it
+            # return StrategyResult(ticker, False, direction, 50, reasons, '')
         
         # Calculate signal strength
         strength = 50
         if rsi < 20 or rsi > 80:
             strength += 20  # Very extreme RSI
-        if abs(return_5d) > 8:
+        if return_5d is not None and abs(return_5d) > 8:
             strength += 15  # Big short-term move
-        if iv_rank and iv_rank < 30:
+        if iv_rank is not None and iv_rank < 30:
             strength += 10  # Cheap options
         
         trade_type = 'CALL_LONG' if direction == 'BULLISH' else 'PUT_LONG'

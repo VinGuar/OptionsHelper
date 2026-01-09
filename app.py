@@ -23,6 +23,7 @@ from datetime import datetime
 from src.data.market_data import MarketDataFetcher
 from src.data.news_scraper import NewsScraper
 from src.data.flow_scraper import FlowScraper, get_flow_data
+from src.data.ticker_fetcher import TickerFetcher
 from src.strategies.loader import get_strategy, list_strategies, STRATEGIES
 from config import SP100_TICKERS
 
@@ -39,7 +40,10 @@ scan_state = {
     'error': None,
 }
 
-# Smaller ticker list for faster scans
+# Ticker fetcher for dynamic universe
+ticker_fetcher = TickerFetcher()
+
+# Smaller ticker list for faster scans (quick mode)
 QUICK_TICKERS = [
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AMD", "NFLX", "CRM",
     "JPM", "BAC", "GS", "V", "MA", "XOM", "CVX", "JNJ", "UNH", "PFE",
@@ -93,14 +97,29 @@ def start_scan():
     
     data = request.json or {}
     strategy_key = data.get('strategy', '1')
-    scan_type = data.get('type', 'quick')  # 'quick' or 'full'
+    scan_type = data.get('type', 'quick')  # 'quick', 'full', or 'extended'
     
     try:
         strategy = get_strategy(strategy_key)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     
-    tickers = QUICK_TICKERS if scan_type == 'quick' else SP100_TICKERS
+    # Get tickers based on scan type
+    if scan_type == 'quick':
+        tickers = QUICK_TICKERS
+    elif scan_type == 'full':
+        tickers = SP100_TICKERS
+    else:  # 'extended' - Full S&P 500
+        try:
+            tickers = ticker_fetcher.get_quality_tickers()
+            if not tickers or len(tickers) == 0:
+                return jsonify({'error': 'Failed to fetch tickers. Please try again.'}), 400
+        except Exception as e:
+            print(f"Error fetching tickers: {e}")
+            return jsonify({'error': f'Error fetching tickers: {str(e)}'}), 400
+    
+    if not tickers or len(tickers) == 0:
+        return jsonify({'error': 'No tickers available for scanning'}), 400
     
     # Reset state
     scan_state = {
@@ -110,54 +129,72 @@ def start_scan():
         'total': len(tickers),
         'results': None,
         'error': None,
+        'has_results': False,
         'strategy_name': strategy.NAME,
         'strategy_info': strategy.get_info(),
     }
     
     # Run scan in background thread
-    thread = threading.Thread(target=run_scan, args=(strategy, tickers))
+    thread = threading.Thread(target=run_scan, args=(strategy, tickers, strategy_key))
     thread.daemon = True
     thread.start()
     
     return jsonify({'status': 'started', 'total': len(tickers)})
 
 
-def run_scan(strategy, tickers):
-    """Background scan function."""
+def run_scan(strategy, tickers, strategy_key):
+    """Background scan function with bulletproof state management."""
     global scan_state
+    
+    # Initialize state
+    scan_state['running'] = True
+    scan_state['error'] = None
+    scan_state['has_results'] = False
+    scan_state['results'] = None
     
     try:
         # Fetch market data
         fetcher = MarketDataFetcher(tickers)
         
-        def progress_callback(ticker, current, total):
+        def progress_callback(ticker_or_msg, current, total):
             scan_state['progress'] = current
-            scan_state['current_ticker'] = ticker
+            scan_state['current_ticker'] = str(ticker_or_msg) if ticker_or_msg else ''
         
-        market_data = fetcher.scan_all(progress_callback=progress_callback)
+        # Only fetch options if strategy needs them (most don't need full chain)
+        needs_options = strategy_key in ['2', '5']  # IV Crush and Iron Condor need options data
+        market_data = fetcher.scan_all(progress_callback=progress_callback, fetch_options=needs_options)
+        
+        if not market_data or len(market_data) == 0:
+            scan_state['error'] = 'No market data retrieved. Check internet connection or try again.'
+            scan_state['has_results'] = False
+            return
         
         # Apply strategy filters
         results = []
         for ticker, data in market_data.items():
-            result = strategy.check_entry(ticker, data)
-            
-            # Convert to dict for JSON
-            result_dict = {
-                'ticker': result.ticker,
-                'passed': result.passed,
-                'direction': result.direction,
-                'signal_strength': result.signal_strength,
-                'reasons': result.reasons,
-                'trade_type': result.trade_type,
-                'price': data.get('price'),
-                'return_5d': data.get('return_5d'),
-                'return_20d': data.get('return_20d'),
-                'iv_rank': data.get('iv_rank'),
-                'rsi': data.get('rsi'),
-                'ma20': data.get('ma20'),
-                'ma50': data.get('ma50'),
-            }
-            results.append(result_dict)
+            try:
+                result = strategy.check_entry(ticker, data)
+                
+                # Convert to dict for JSON
+                result_dict = {
+                    'ticker': result.ticker,
+                    'passed': result.passed,
+                    'direction': result.direction,
+                    'signal_strength': result.signal_strength,
+                    'reasons': result.reasons,
+                    'trade_type': result.trade_type,
+                    'price': data.get('price'),
+                    'return_5d': data.get('return_5d'),
+                    'return_20d': data.get('return_20d'),
+                    'iv_rank': data.get('iv_rank'),
+                    'rsi': data.get('rsi'),
+                    'ma20': data.get('ma20'),
+                    'ma50': data.get('ma50'),
+                }
+                results.append(result_dict)
+            except Exception as e:
+                # Skip individual ticker errors
+                continue
         
         # Sort by passed + signal strength
         results.sort(key=lambda x: (x['passed'], x['signal_strength']), reverse=True)
@@ -171,24 +208,46 @@ def run_scan(strategy, tickers):
             'structure': strategy.get_option_structure(),
             'exits': strategy.get_exit_rules(),
         }
+        scan_state['has_results'] = True
+        scan_state['error'] = None
         
     except Exception as e:
+        import traceback
+        error_msg = f"{str(e)}\n{traceback.format_exc()}"
+        print(f"Scan error: {error_msg}")
         scan_state['error'] = str(e)
-    
+        scan_state['has_results'] = False
     finally:
+        # Always reset running state, even on error
         scan_state['running'] = False
+
+
+@app.route('/api/scan/reset', methods=['POST'])
+def reset_scan():
+    """Reset scan state (force clear if stuck)."""
+    global scan_state
+    scan_state = {
+        'running': False,
+        'progress': 0,
+        'current_ticker': '',
+        'total': 0,
+        'results': None,
+        'error': None,
+        'has_results': False,
+    }
+    return jsonify({'status': 'reset'})
 
 
 @app.route('/api/scan/status')
 def scan_status():
     """Get current scan status."""
     return jsonify({
-        'running': scan_state['running'],
-        'progress': scan_state['progress'],
-        'total': scan_state['total'],
-        'current_ticker': scan_state['current_ticker'],
-        'error': scan_state['error'],
-        'has_results': scan_state['results'] is not None,
+        'running': scan_state.get('running', False),
+        'progress': scan_state.get('progress', 0),
+        'total': scan_state.get('total', 0),
+        'current_ticker': scan_state.get('current_ticker', ''),
+        'error': scan_state.get('error'),
+        'has_results': scan_state.get('has_results', False) or scan_state.get('results') is not None,
     })
 
 

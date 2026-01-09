@@ -67,3 +67,4 @@ class BaseStrategy(ABC):
             'typical_hold_days': self.TYPICAL_HOLD_DAYS,
         }
 
+

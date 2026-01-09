@@ -374,3 +374,4 @@ def generate_all_candidates(filter_results: list, market_data: dict) -> list[Spr
     
     return all_candidates
 
+
