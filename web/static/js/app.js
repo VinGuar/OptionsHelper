@@ -155,7 +155,7 @@ class OptionsScanner {
     
     async loadStrategies() {
         try {
-            const response = await fetch('/api/strategies');
+            const response = await fetch(getApiUrl('/api/strategies'));
             const strategies = await response.json();
             this.strategiesData = strategies;
             this.renderStrategies(strategies);
@@ -306,7 +306,7 @@ class OptionsScanner {
         document.getElementById('results-body').innerHTML = '';
         
         try {
-            const response = await fetch('/api/scan/start', {
+            const response = await fetch(getApiUrl('/api/scan/start'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -335,7 +335,7 @@ class OptionsScanner {
     async pollProgress() {
         this.pollInterval = setInterval(async () => {
             try {
-                const response = await fetch('/api/scan/status');
+                const response = await fetch(getApiUrl('/api/scan/status'));
                 const status = await response.json();
                 
                 // Update progress bar
@@ -376,7 +376,7 @@ class OptionsScanner {
     
     async loadResults() {
         try {
-            const response = await fetch('/api/scan/results');
+            const response = await fetch(getApiUrl('/api/scan/results'));
             const data = await response.json();
             this.results = data;
             

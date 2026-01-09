@@ -103,7 +103,7 @@ class MarketPage {
         btnAll.disabled = true;
         
         try {
-            const response = await fetch('/api/market');
+            const response = await fetch(getApiUrl('/api/market'));
             const data = await response.json();
             
             this.marketData = data;
@@ -268,7 +268,7 @@ class MarketPage {
         btnLosers.classList.add('loading');
         
         try {
-            const response = await fetch('/api/market');
+            const response = await fetch(getApiUrl('/api/market'));
             const data = await response.json();
             
             this.renderMovers(data.movers);
@@ -294,7 +294,7 @@ class MarketPage {
         btn.classList.add('loading');
         
         try {
-            const response = await fetch('/api/market');
+            const response = await fetch(getApiUrl('/api/market'));
             const data = await response.json();
             
             this.renderMostActive(data.most_active);
@@ -318,7 +318,7 @@ class MarketPage {
         btn.classList.add('loading');
         
         try {
-            const response = await fetch('/api/market');
+            const response = await fetch(getApiUrl('/api/market'));
             const data = await response.json();
             
             this.renderSectors(data.sectors);
@@ -342,7 +342,7 @@ class MarketPage {
         btn.classList.add('loading');
         
         try {
-            const response = await fetch('/api/market');
+            const response = await fetch(getApiUrl('/api/market'));
             const data = await response.json();
             
             this.renderEvents(data.events);

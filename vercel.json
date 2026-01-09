@@ -1,0 +1,15 @@
+{
+  "buildCommand": "node inject-api-url.js",
+  "outputDirectory": ".",
+  "rewrites": [
+    {
+      "source": "/static/(.*)",
+      "destination": "/web/static/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/web/templates/$1"
+    }
+  ]
+}
+

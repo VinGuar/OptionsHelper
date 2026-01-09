@@ -132,7 +132,7 @@ class NewsFlowPage {
         list.innerHTML = '<div class="loading-state">Loading stock news...</div>';
         
         try {
-            const response = await fetch('/api/news/market');
+            const response = await fetch(getApiUrl('/api/news/market'));
             const data = await response.json();
             
             if (data.news && data.news.length > 0) {
@@ -233,7 +233,7 @@ class NewsFlowPage {
         list.innerHTML = '<div class="loading-state">Scanning for unusual options activity...</div>';
         
         try {
-            const response = await fetch('/api/flow');
+            const response = await fetch(getApiUrl('/api/flow'));
             const data = await response.json();
             
             this.flowData = data.unusual_flow || [];

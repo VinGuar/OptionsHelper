@@ -1,0 +1,22 @@
+# Files to ignore when deploying to Railway
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+dist/
+build/
+.env
+.env.local
+.git/
+.gitignore
+README.md
+DEPLOYMENT.md
+vercel.json
+inject-api-url.js
+node_modules/
+

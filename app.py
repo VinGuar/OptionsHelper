@@ -18,6 +18,7 @@ from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import threading
 import json
+import time
 from datetime import datetime
 
 from src.data.market_data import MarketDataFetcher
@@ -28,7 +29,10 @@ from src.strategies.loader import get_strategy, list_strategies, STRATEGIES
 from config import SP100_TICKERS
 
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
-CORS(app)
+
+# CORS configuration - allow Vercel frontend
+CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*').split(',')
+CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
 
 # Global state for scan progress
 scan_state = {
@@ -38,7 +42,27 @@ scan_state = {
     'total': 0,
     'results': None,
     'error': None,
+    'started_at': None,  # Timestamp for timeout detection
 }
+
+# Simple in-memory cache for market data and scan results
+cache = {
+    'price_data': {},  # {ticker: {data, timestamp}}
+    'scan_results': {},  # {cache_key: {results, timestamp}}
+    'news': {},  # {key: {data, timestamp}}
+    'market_data': {},  # {key: {data, timestamp}}
+}
+
+# Cache TTLs (in seconds)
+CACHE_TTL = {
+    'price_data': 900,  # 15 minutes
+    'scan_results': 300,  # 5 minutes
+    'news': 600,  # 10 minutes
+    'market_data': 300,  # 5 minutes
+}
+
+# Scan timeout (5 minutes = 300 seconds)
+SCAN_TIMEOUT = int(os.getenv('SCAN_TIMEOUT', '300'))
 
 # Ticker fetcher for dynamic universe
 ticker_fetcher = TickerFetcher()
@@ -92,6 +116,16 @@ def start_scan():
     """Start a new scan."""
     global scan_state
     
+    # Check for stuck scans (timeout failsafe)
+    if scan_state['running'] and scan_state.get('started_at'):
+        elapsed = time.time() - scan_state['started_at']
+        if elapsed > SCAN_TIMEOUT:
+            print(f"WARNING: Scan timeout detected ({elapsed:.0f}s > {SCAN_TIMEOUT}s). Resetting...")
+            scan_state['running'] = False
+            scan_state['error'] = 'Previous scan timed out. Starting new scan.'
+        else:
+            return jsonify({'error': 'Scan already running'}), 400
+    
     if scan_state['running']:
         return jsonify({'error': 'Scan already running'}), 400
     
@@ -103,6 +137,16 @@ def start_scan():
         strategy = get_strategy(strategy_key)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    
+    # Check cache first
+    cache_key = f"{strategy_key}_{scan_type}"
+    cached = cache['scan_results'].get(cache_key)
+    if cached and (time.time() - cached['timestamp']) < CACHE_TTL['scan_results']:
+        print(f"Returning cached scan results for {cache_key}")
+        scan_state['results'] = cached['results']
+        scan_state['has_results'] = True
+        scan_state['running'] = False
+        return jsonify({'status': 'cached', 'total': len(cached['results'].get('candidates', []))})
     
     # Get tickers based on scan type
     if scan_type == 'quick':
@@ -121,7 +165,7 @@ def start_scan():
     if not tickers or len(tickers) == 0:
         return jsonify({'error': 'No tickers available for scanning'}), 400
     
-    # Reset state
+    # Reset state with timestamp
     scan_state = {
         'running': True,
         'progress': 0,
@@ -132,31 +176,42 @@ def start_scan():
         'has_results': False,
         'strategy_name': strategy.NAME,
         'strategy_info': strategy.get_info(),
+        'started_at': time.time(),  # Track when scan started
     }
     
     # Run scan in background thread
-    thread = threading.Thread(target=run_scan, args=(strategy, tickers, strategy_key))
+    thread = threading.Thread(target=run_scan, args=(strategy, tickers, strategy_key, cache_key))
     thread.daemon = True
     thread.start()
     
     return jsonify({'status': 'started', 'total': len(tickers)})
 
 
-def run_scan(strategy, tickers, strategy_key):
-    """Background scan function with bulletproof state management."""
-    global scan_state
+def run_scan(strategy, tickers, strategy_key, cache_key):
+    """Background scan function with bulletproof state management and timeout protection."""
+    global scan_state, cache
     
     # Initialize state
     scan_state['running'] = True
     scan_state['error'] = None
     scan_state['has_results'] = False
     scan_state['results'] = None
+    scan_state['started_at'] = time.time()
     
     try:
+        # Timeout check at start
+        if scan_state.get('started_at') and (time.time() - scan_state['started_at']) > SCAN_TIMEOUT:
+            scan_state['error'] = f'Scan timeout exceeded ({SCAN_TIMEOUT}s)'
+            scan_state['has_results'] = False
+            return
+        
         # Fetch market data
         fetcher = MarketDataFetcher(tickers)
         
         def progress_callback(ticker_or_msg, current, total):
+            # Check timeout during progress updates
+            if scan_state.get('started_at') and (time.time() - scan_state['started_at']) > SCAN_TIMEOUT:
+                raise TimeoutError(f'Scan exceeded timeout of {SCAN_TIMEOUT}s')
             scan_state['progress'] = current
             scan_state['current_ticker'] = str(ticker_or_msg) if ticker_or_msg else ''
         
@@ -172,6 +227,10 @@ def run_scan(strategy, tickers, strategy_key):
         # Apply strategy filters
         results = []
         for ticker, data in market_data.items():
+            # Check timeout periodically
+            if scan_state.get('started_at') and (time.time() - scan_state['started_at']) > SCAN_TIMEOUT:
+                raise TimeoutError(f'Scan exceeded timeout of {SCAN_TIMEOUT}s')
+            
             try:
                 result = strategy.check_entry(ticker, data)
                 
@@ -199,7 +258,7 @@ def run_scan(strategy, tickers, strategy_key):
         # Sort by passed + signal strength
         results.sort(key=lambda x: (x['passed'], x['signal_strength']), reverse=True)
         
-        scan_state['results'] = {
+        scan_results = {
             'candidates': results,
             'passed_count': len([r for r in results if r['passed']]),
             'total_count': len(results),
@@ -208,9 +267,21 @@ def run_scan(strategy, tickers, strategy_key):
             'structure': strategy.get_option_structure(),
             'exits': strategy.get_exit_rules(),
         }
+        
+        # Cache results
+        cache['scan_results'][cache_key] = {
+            'results': scan_results,
+            'timestamp': time.time()
+        }
+        
+        scan_state['results'] = scan_results
         scan_state['has_results'] = True
         scan_state['error'] = None
         
+    except TimeoutError as e:
+        print(f"Scan timeout: {e}")
+        scan_state['error'] = str(e)
+        scan_state['has_results'] = False
     except Exception as e:
         import traceback
         error_msg = f"{str(e)}\n{traceback.format_exc()}"
@@ -220,6 +291,7 @@ def run_scan(strategy, tickers, strategy_key):
     finally:
         # Always reset running state, even on error
         scan_state['running'] = False
+        scan_state['started_at'] = None
 
 
 @app.route('/api/scan/reset', methods=['POST'])
@@ -234,6 +306,7 @@ def reset_scan():
         'results': None,
         'error': None,
         'has_results': False,
+        'started_at': None,
     }
     return jsonify({'status': 'reset'})
 
@@ -241,6 +314,14 @@ def reset_scan():
 @app.route('/api/scan/status')
 def scan_status():
     """Get current scan status."""
+    # Check for timeout
+    if scan_state.get('running') and scan_state.get('started_at'):
+        elapsed = time.time() - scan_state['started_at']
+        if elapsed > SCAN_TIMEOUT:
+            scan_state['running'] = False
+            scan_state['error'] = f'Scan timed out after {SCAN_TIMEOUT}s'
+            scan_state['started_at'] = None
+    
     return jsonify({
         'running': scan_state.get('running', False),
         'progress': scan_state.get('progress', 0),
@@ -409,10 +490,19 @@ if __name__ == '__main__':
     os.makedirs('web/static/css', exist_ok=True)
     os.makedirs('web/static/js', exist_ok=True)
     
+    # Get port from environment (Railway sets PORT)
+    port = int(os.getenv('PORT', 5000))
+    # Enable debug mode by default for local development (unless explicitly disabled)
+    debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    
     print("\n" + "=" * 50)
     print("  OPTIONS EDGE SCANNER")
-    print("  Open http://localhost:5000 in your browser")
+    print(f"  Running on port {port}")
+    if debug:
+        print("  Debug mode: ON (auto-reload enabled)")
+    else:
+        print("  Production mode")
     print("=" * 50 + "\n")
     
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=port, debug=debug)
 
