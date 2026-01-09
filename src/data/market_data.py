@@ -24,59 +24,126 @@ class MarketDataFetcher:
         
     def scan_all(self, progress_callback=None, fetch_options: bool = False) -> dict:
         """
-        Scan all tickers using concurrent downloads with timeouts for reliability.
+        Scan all tickers using batch downloads for speed (like local version).
         Two-phase approach:
-        1. Phase 1: Concurrent download prices + calculate indicators (fast)
+        1. Phase 1: Batch download prices + calculate indicators (fast)
         2. Phase 2: Enrich top candidates with options data (if needed)
         """
         results = {}
         total = len(self.tickers)
         
-        # Use concurrent downloads with timeout instead of batch (more reliable)
+        # Phase 1: Batch download all prices at once (10-30x faster - same as local)
         if progress_callback:
             try:
-                progress_callback("Starting download...", 0, total)
+                progress_callback("Batch downloading prices...", 0, total)
             except:
                 pass  # Ignore callback errors
         
-        # Try concurrent downloads with timeout (faster and more reliable than batch)
         try:
-            results = self._scan_concurrent(progress_callback, fetch_options)
-            if results and len(results) > 0:
-                return results
+            # Download all tickers at once with timeout wrapper (same as local)
+            def batch_download_with_timeout():
+                return yf.download(
+                    self.tickers,
+                    period="6mo",  # Use 6mo instead of 1y for speed
+                    group_by="ticker",
+                    threads=True,
+                    progress=False
+                )
+            
+            # Wrap batch download in timeout to prevent hanging
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(batch_download_with_timeout)
+                try:
+                    batch_data = future.result(timeout=30)  # 30s timeout for batch
+                except FutureTimeoutError:
+                    print("Batch download timeout, falling back to sequential...")
+                    return self._scan_sequential(progress_callback, fetch_options)
+            
+            if batch_data.empty:
+                print("Warning: Batch download returned empty data")
+                return self._scan_sequential(progress_callback, fetch_options)
+            
+            # Count successfully downloaded tickers
+            if isinstance(batch_data.columns, pd.MultiIndex):
+                downloaded_count = len(batch_data.columns.levels[0])
+            else:
+                downloaded_count = 1 if len(self.tickers) == 1 else 0
+            
+            print(f"Downloaded data for {downloaded_count} tickers")
+            
         except Exception as e:
-            print(f"Concurrent download error: {e}, falling back to sequential...")
+            print(f"Batch download error: {e}, falling back to sequential...")
+            return self._scan_sequential(progress_callback, fetch_options)
         
-        # Fallback to sequential if concurrent fails or returns no results
-        if progress_callback:
+        # Process each ticker from batch data (fast - just data processing)
+        processed_count = 0
+        for i, ticker in enumerate(self.tickers):
+            if progress_callback:
+                try:
+                    progress_callback(ticker, i + 1, total)
+                except:
+                    pass
+            
             try:
-                progress_callback("Using fallback method...", 0, total)
-            except:
-                pass
-        return self._scan_sequential(progress_callback, fetch_options)
+                # Extract ticker data from batch
+                price_data = None
+                
+                if isinstance(batch_data.columns, pd.MultiIndex):
+                    if ticker in batch_data.columns.levels[0]:
+                        price_data = batch_data[ticker].copy()
+                elif len(self.tickers) == 1:
+                    price_data = batch_data.copy()
+                
+                if price_data is None or price_data.empty or len(price_data) < 50:
+                    continue
+                
+                # Process ticker data
+                ticker_result = self._process_ticker_data(ticker, price_data)
+                if ticker_result:
+                    results[ticker] = ticker_result
+                    processed_count += 1
+                    
+            except Exception as e:
+                continue
+        
+        print(f"Processed {processed_count} tickers from batch download")
+        
+        # Phase 2: Enrich top candidates with options data (if needed)
+        if fetch_options and results:
+            top_candidates = sorted(
+                results.items(),
+                key=lambda x: abs(x[1].get('return_20d', 0) or 0),
+                reverse=True
+            )[:20]
+            
+            for ticker, _ in top_candidates:
+                try:
+                    options_data = self.get_options_chain(ticker)
+                    if options_data:
+                        results[ticker]['options'] = options_data
+                except Exception as e:
+                    continue
+        
+        return results
     
     def _scan_concurrent(self, progress_callback=None, fetch_options: bool = False) -> dict:
         """Download tickers concurrently with timeouts for speed and reliability."""
         results = {}
         total = len(self.tickers)
         
-        def fetch_single_ticker_with_timeout(ticker):
-            """Fetch data for a single ticker with timeout wrapper."""
+        def fetch_single_ticker(ticker):
+            """Fetch data for a single ticker - optimized for speed."""
             try:
                 stock = yf.Ticker(ticker)
-                # Wrap in timeout using ThreadPoolExecutor
-                with ThreadPoolExecutor(max_workers=1) as timeout_executor:
-                    future = timeout_executor.submit(stock.history, period="1y")
-                    try:
-                        price_data = future.result(timeout=8)  # 8s timeout per ticker
-                        return ticker, price_data
-                    except FutureTimeoutError:
-                        return ticker, None
+                # Use 6mo period instead of 1y - much faster and we only need recent data
+                # This is 2-3x faster than 1y downloads
+                price_data = stock.history(period="6mo")
+                return ticker, price_data
             except Exception as e:
                 return ticker, None
         
-        # Use ThreadPoolExecutor with max_workers for concurrent downloads
-        max_workers = min(10, total)  # Limit concurrent requests
+        # Use more workers for better concurrency (up to 20 for faster scans)
+        max_workers = min(20, total)
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
