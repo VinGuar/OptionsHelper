@@ -9,7 +9,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeoutError
 warnings.filterwarnings('ignore')
 
 
@@ -24,133 +24,116 @@ class MarketDataFetcher:
         
     def scan_all(self, progress_callback=None, fetch_options: bool = False) -> dict:
         """
-        Scan all tickers using batch downloads for speed.
+        Scan all tickers using concurrent downloads with timeouts for reliability.
         Two-phase approach:
-        1. Phase 1: Batch download prices + calculate indicators (fast)
+        1. Phase 1: Concurrent download prices + calculate indicators (fast)
         2. Phase 2: Enrich top candidates with options data (if needed)
         """
         results = {}
         total = len(self.tickers)
         
-        # Phase 1: Batch download all prices at once (10-30x faster)
+        # Use concurrent downloads with timeout instead of batch (more reliable)
         if progress_callback:
             try:
-                progress_callback("Batch downloading prices...", 0, total)
+                progress_callback("Starting download...", 0, total)
             except:
                 pass  # Ignore callback errors
         
+        # Try concurrent downloads with timeout (faster and more reliable than batch)
         try:
-            # Download all tickers at once (much faster than sequential)
-            print(f"Batch downloading {total} tickers...")
-            batch_data = yf.download(
-                self.tickers,
-                period="1y",
-                group_by="ticker",
-                threads=True,
-                progress=False
-            )
-            
-            if batch_data.empty:
-                print("Warning: Batch download returned empty data")
-                return {}
-            
-            # Count successfully downloaded tickers
-            if isinstance(batch_data.columns, pd.MultiIndex):
-                downloaded_count = len(batch_data.columns.levels[0])
-            else:
-                downloaded_count = 1 if len(self.tickers) == 1 else 0
-            
-            print(f"Downloaded data for {downloaded_count} tickers")
-            
+            results = self._scan_concurrent(progress_callback, fetch_options)
+            if results and len(results) > 0:
+                return results
         except Exception as e:
-            print(f"Batch download error: {e}, falling back to sequential...")
-            # Fallback to sequential if batch fails
-            return self._scan_sequential(progress_callback, fetch_options)
+            print(f"Concurrent download error: {e}, falling back to sequential...")
         
-        # Process each ticker from batch data
-        processed_count = 0
-        for i, ticker in enumerate(self.tickers):
-            if progress_callback:
-                progress_callback(ticker, i + 1, total)
+        # Fallback to sequential if concurrent fails or returns no results
+        if progress_callback:
+            try:
+                progress_callback("Using fallback method...", 0, total)
+            except:
+                pass
+        return self._scan_sequential(progress_callback, fetch_options)
+    
+    def _scan_concurrent(self, progress_callback=None, fetch_options: bool = False) -> dict:
+        """Download tickers concurrently with timeouts for speed and reliability."""
+        results = {}
+        total = len(self.tickers)
+        
+        def fetch_single_ticker_with_timeout(ticker):
+            """Fetch data for a single ticker with timeout wrapper."""
+            try:
+                stock = yf.Ticker(ticker)
+                # Wrap in timeout using ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=1) as timeout_executor:
+                    future = timeout_executor.submit(stock.history, period="1y")
+                    try:
+                        price_data = future.result(timeout=8)  # 8s timeout per ticker
+                        return ticker, price_data
+                    except FutureTimeoutError:
+                        return ticker, None
+            except Exception as e:
+                return ticker, None
+        
+        # Use ThreadPoolExecutor with max_workers for concurrent downloads
+        max_workers = min(10, total)  # Limit concurrent requests
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_ticker = {
+                executor.submit(fetch_single_ticker_with_timeout, ticker): ticker 
+                for ticker in self.tickers
+            }
+            
+            # Process completed tasks with progress updates
+            completed = 0
+            processed_tickers = set()
             
             try:
-                # Extract ticker data from batch
-                price_data = None
-                
-                if isinstance(batch_data.columns, pd.MultiIndex):
-                    # Multi-ticker download with MultiIndex columns
-                    if ticker in batch_data.columns.levels[0]:
-                        price_data = batch_data[ticker].copy()
-                elif len(self.tickers) == 1:
-                    # Single ticker case
-                    price_data = batch_data.copy()
-                
-                if price_data is None or price_data.empty or len(price_data) < 50:
-                    continue
-                
-                # Ensure we have Close column
-                if 'Close' not in price_data.columns:
-                    if 'Adj Close' in price_data.columns:
-                        price_data['Close'] = price_data['Adj Close']
-                    else:
+                # Use shorter timeout to prevent hanging
+                for future in as_completed(future_to_ticker, timeout=45):  # 45s total timeout
+                    ticker = future_to_ticker[future]
+                    
+                    if ticker in processed_tickers:
                         continue
-                
-                # Clean and prepare data
-                price_data = price_data.dropna(subset=['Close'])
-                if len(price_data) < 50:
-                    continue
-                
-                # Use last 3 months for calculations (faster)
-                price_data_subset = price_data.tail(90) if len(price_data) >= 90 else price_data
-                
-                # Calculate indicators
-                price_data_subset = price_data_subset.copy()
-                price_data_subset['MA20'] = price_data_subset['Close'].rolling(window=20).mean()
-                price_data_subset['MA50'] = price_data_subset['Close'].rolling(window=50).mean()
-                price_data_subset['Return_1D'] = price_data_subset['Close'].pct_change()
-                price_data_subset['Return_5D'] = price_data_subset['Close'].pct_change(5)
-                price_data_subset['Return_20D'] = price_data_subset['Close'].pct_change(20)
-                price_data_subset['RealizedVol_20D'] = price_data_subset['Return_1D'].rolling(window=20).std() * np.sqrt(252)
-                
-                # RSI
-                delta = price_data_subset['Close'].diff()
-                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                rs = gain / loss.replace(0, np.nan)
-                price_data_subset['RSI'] = 100 - (100 / (1 + rs))
-                
-                # Get latest values
-                latest = price_data_subset.iloc[-1]
-                
-                # Calculate IV rank using full year data
-                iv_rank = self._calculate_iv_rank(price_data)
-                
-                # Debug: log if IV rank is None
-                if iv_rank is None and len(price_data) >= 50:
-                    print(f"Warning: IV Rank calculation failed for {ticker} (data length: {len(price_data)})")
-                
-                # Store basic data (options will be fetched later if needed)
-                results[ticker] = {
-                    'price': round(float(latest['Close']), 2),
-                    'ma20': round(float(latest['MA20']), 2) if pd.notna(latest['MA20']) else None,
-                    'ma50': round(float(latest['MA50']), 2) if pd.notna(latest['MA50']) else None,
-                    'return_1d': round(float(latest['Return_1D'] * 100), 2) if pd.notna(latest['Return_1D']) else None,
-                    'return_5d': round(float(latest['Return_5D'] * 100), 2) if pd.notna(latest['Return_5D']) else None,
-                    'return_20d': round(float(latest['Return_20D'] * 100), 2) if pd.notna(latest['Return_20D']) else None,
-                    'realized_vol': round(float(latest['RealizedVol_20D'] * 100), 2) if pd.notna(latest['RealizedVol_20D']) else None,
-                    'rsi': round(float(latest['RSI']), 1) if pd.notna(latest['RSI']) else None,
-                    'iv_rank': iv_rank,
-                    'earnings_date': None,  # Removed from scan - too slow
-                    'options': None,  # Will be fetched in phase 2 if needed
-                }
-                
-                processed_count += 1
-                
-            except Exception as e:
-                # Skip tickers that fail
-                continue
-        
-        print(f"Processed {processed_count} tickers from batch download")
+                    processed_tickers.add(ticker)
+                    completed += 1
+                    
+                    # Update progress immediately
+                    if progress_callback:
+                        try:
+                            progress_callback(ticker, completed, total)
+                        except:
+                            pass
+                    
+                    try:
+                        ticker, price_data = future.result(timeout=1)  # Quick result check
+                        
+                        if price_data is None or price_data.empty or len(price_data) < 50:
+                            continue
+                        
+                        # Process this ticker's data
+                        ticker_result = self._process_ticker_data(ticker, price_data)
+                        if ticker_result:
+                            results[ticker] = ticker_result
+                    except FutureTimeoutError:
+                        # Skip this ticker if it times out
+                        continue
+                    except Exception as e:
+                        continue
+            except FutureTimeoutError:
+                # Overall timeout - mark remaining as processed
+                for ticker in self.tickers:
+                    if ticker not in processed_tickers:
+                        completed += 1
+                        processed_tickers.add(ticker)
+                        if progress_callback:
+                            try:
+                                progress_callback(ticker, completed, total)
+                            except:
+                                pass
+                # Return what we have so far
+                pass
         
         # Phase 2: Enrich top candidates with options data (if needed)
         if fetch_options and results:
@@ -161,7 +144,6 @@ class MarketDataFetcher:
                 reverse=True
             )[:20]
             
-            print(f"Enriching top {len(top_candidates)} candidates with options data...")
             for ticker, _ in top_candidates:
                 try:
                     options_data = self.get_options_chain(ticker)
@@ -172,58 +154,112 @@ class MarketDataFetcher:
         
         return results
     
+    def _process_ticker_data(self, ticker: str, price_data: pd.DataFrame) -> Optional[dict]:
+        """Process price data for a single ticker and return market data dict."""
+        try:
+            # Ensure we have Close column
+            if 'Close' not in price_data.columns:
+                if 'Adj Close' in price_data.columns:
+                    price_data = price_data.copy()
+                    price_data['Close'] = price_data['Adj Close']
+                else:
+                    return None
+            
+            # Clean and prepare data
+            price_data = price_data.dropna(subset=['Close'])
+            if len(price_data) < 50:
+                return None
+            
+            # Use last 3 months for calculations (faster)
+            price_data_subset = price_data.tail(90) if len(price_data) >= 90 else price_data
+            
+            # Calculate indicators
+            price_data_subset = price_data_subset.copy()
+            price_data_subset['MA20'] = price_data_subset['Close'].rolling(window=20).mean()
+            price_data_subset['MA50'] = price_data_subset['Close'].rolling(window=50).mean()
+            price_data_subset['Return_1D'] = price_data_subset['Close'].pct_change()
+            price_data_subset['Return_5D'] = price_data_subset['Close'].pct_change(5)
+            price_data_subset['Return_20D'] = price_data_subset['Close'].pct_change(20)
+            price_data_subset['RealizedVol_20D'] = price_data_subset['Return_1D'].rolling(window=20).std() * np.sqrt(252)
+            
+            # RSI
+            delta = price_data_subset['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss.replace(0, np.nan)
+            price_data_subset['RSI'] = 100 - (100 / (1 + rs))
+            
+            # Get latest values
+            latest = price_data_subset.iloc[-1]
+            
+            # Calculate IV rank using full year data
+            iv_rank = self._calculate_iv_rank(price_data)
+            
+            return {
+                'price': round(float(latest['Close']), 2),
+                'ma20': round(float(latest['MA20']), 2) if pd.notna(latest['MA20']) else None,
+                'ma50': round(float(latest['MA50']), 2) if pd.notna(latest['MA50']) else None,
+                'return_1d': round(float(latest['Return_1D'] * 100), 2) if pd.notna(latest['Return_1D']) else None,
+                'return_5d': round(float(latest['Return_5D'] * 100), 2) if pd.notna(latest['Return_5D']) else None,
+                'return_20d': round(float(latest['Return_20D'] * 100), 2) if pd.notna(latest['Return_20D']) else None,
+                'realized_vol': round(float(latest['RealizedVol_20D'] * 100), 2) if pd.notna(latest['RealizedVol_20D']) else None,
+                'rsi': round(float(latest['RSI']), 1) if pd.notna(latest['RSI']) else None,
+                'iv_rank': iv_rank,
+                'earnings_date': None,
+                'options': None,  # Will be fetched in phase 2 if needed
+            }
+        except Exception as e:
+            return None
+    
     def _scan_sequential(self, progress_callback=None, fetch_options: bool = False) -> dict:
-        """Fallback sequential scanning if batch download fails."""
+        """Fallback sequential scanning if concurrent download fails."""
         results = {}
         total = len(self.tickers)
         
         for i, ticker in enumerate(self.tickers):
             if progress_callback:
-                progress_callback(ticker, i + 1, total)
+                try:
+                    progress_callback(ticker, i + 1, total)
+                except:
+                    pass
             
             try:
                 stock = yf.Ticker(ticker)
-                price_data = stock.history(period="1y")
+                # Fetch with timeout wrapper
+                price_data = None
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(stock.history, period="1y")
+                    try:
+                        price_data = future.result(timeout=15)  # 15s timeout per ticker
+                    except FutureTimeoutError:
+                        continue
                 
                 if price_data.empty or len(price_data) < 50:
                     continue
                 
-                # Use last 3 months for calculations
-                price_data_subset = price_data.tail(90) if len(price_data) >= 90 else price_data
-                
-                # Calculate indicators (same as batch version)
-                price_data_subset = price_data_subset.copy()
-                price_data_subset['MA20'] = price_data_subset['Close'].rolling(window=20).mean()
-                price_data_subset['MA50'] = price_data_subset['Close'].rolling(window=50).mean()
-                price_data_subset['Return_1D'] = price_data_subset['Close'].pct_change()
-                price_data_subset['Return_5D'] = price_data_subset['Close'].pct_change(5)
-                price_data_subset['Return_20D'] = price_data_subset['Close'].pct_change(20)
-                price_data_subset['RealizedVol_20D'] = price_data_subset['Return_1D'].rolling(window=20).std() * np.sqrt(252)
-                
-                delta = price_data_subset['Close'].diff()
-                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                rs = gain / loss.replace(0, np.nan)
-                price_data_subset['RSI'] = 100 - (100 / (1 + rs))
-                
-                latest = price_data_subset.iloc[-1]
-                iv_rank = self._calculate_iv_rank(price_data)
-                
-                results[ticker] = {
-                    'price': round(float(latest['Close']), 2),
-                    'ma20': round(float(latest['MA20']), 2) if pd.notna(latest['MA20']) else None,
-                    'ma50': round(float(latest['MA50']), 2) if pd.notna(latest['MA50']) else None,
-                    'return_1d': round(float(latest['Return_1D'] * 100), 2) if pd.notna(latest['Return_1D']) else None,
-                    'return_5d': round(float(latest['Return_5D'] * 100), 2) if pd.notna(latest['Return_5D']) else None,
-                    'return_20d': round(float(latest['Return_20D'] * 100), 2) if pd.notna(latest['Return_20D']) else None,
-                    'realized_vol': round(float(latest['RealizedVol_20D'] * 100), 2) if pd.notna(latest['RealizedVol_20D']) else None,
-                    'rsi': round(float(latest['RSI']), 1) if pd.notna(latest['RSI']) else None,
-                    'iv_rank': iv_rank,
-                    'earnings_date': None,
-                    'options': None,
-                }
-            except:
+                # Process ticker data
+                ticker_result = self._process_ticker_data(ticker, price_data)
+                if ticker_result:
+                    results[ticker] = ticker_result
+            except Exception as e:
                 continue
+        
+        # Phase 2: Enrich top candidates with options data (if needed)
+        if fetch_options and results:
+            # Only fetch options for top 20 candidates by price movement
+            top_candidates = sorted(
+                results.items(),
+                key=lambda x: abs(x[1].get('return_20d', 0) or 0),
+                reverse=True
+            )[:20]
+            
+            for ticker, _ in top_candidates:
+                try:
+                    options_data = self.get_options_chain(ticker)
+                    if options_data:
+                        results[ticker]['options'] = options_data
+                except Exception as e:
+                    continue
         
         return results
     
