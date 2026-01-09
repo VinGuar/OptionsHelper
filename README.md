@@ -4,7 +4,9 @@ A web app that scans stocks for options trading opportunities using rule-based s
 
 ## 🌐 Live Demo
 
-**Try it now:** [https://options-helper.vercel.app/](https://options-helper.vercel.app/)
+**Frontend:** [https://options-helper.vercel.app/](https://options-helper.vercel.app/)
+
+> **Note:** The live scanning functionality is currently unavailable on the public deployment as the backend hosting trial period has concluded. To experience the full application with all features, please run it locally using the setup instructions below. The frontend interface remains accessible for demonstration purposes.
 
 ## Features
 
